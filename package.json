@@ -1,0 +1,30 @@
+{
+  "name": "ai-magic",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @ai-magic/web dev",
+    "dev:worker": "pnpm --filter @ai-magic/worker dev",
+    "build": "pnpm --filter @ai-magic/web build",
+    "db:generate": "pnpm --filter @ai-magic/db generate",
+    "db:migrate": "pnpm --filter @ai-magic/db migrate",
+    "db:push": "pnpm --filter @ai-magic/db push",
+    "db:seed": "pnpm --filter @ai-magic/db seed",
+    "db:studio": "pnpm --filter @ai-magic/db studio",
+    "lint": "pnpm --filter @ai-magic/web lint"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "esbuild",
+      "msgpackr-extract",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}

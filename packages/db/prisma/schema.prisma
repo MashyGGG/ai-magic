@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────── Enums ────────────────────────────
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  REVIEWER
+}
+
+enum ProviderName {
+  MINIMAX
+  RUNWAY
+  JIMENG
+  OPENAI
+}
+
+enum JobStage {
+  IMAGE
+  VIDEO
+}
+
+enum JobStatus {
+  PENDING
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  RETRYING
+  DOWNLOAD_FAILED
+  BUDGET_EXCEEDED
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+}
+
+enum ReviewStatus {
+  DRAFT
+  GENERATED
+  REVIEWING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum BillingUnit {
+  PER_IMAGE
+  PER_SECOND
+  CREDIT
+  TOKEN
+  FIXED
+}
+
+// ──────────────────────────── Models ───────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  name         String?
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(EDITOR)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  characterTemplates CharacterTemplate[]
+  outfits            Outfit[]
+  reviews            ReviewRecord[]
+}
+
+model CharacterTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  genderStyle      String?
+  ageStyle         String?
+  faceDesc         String?
+  hairDesc         String?
+  skinDesc         String?
+  bodyDesc         String?
+  vibeDesc         String?
+  defaultScene     String?
+  defaultCamera    String?
+  defaultMotion    String?
+  referenceAssetId String?
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  createdBy      User    @relation(fields: [createdById], references: [id])
+  referenceAsset Asset?  @relation("CharacterReferenceAsset", fields: [referenceAssetId], references: [id])
+  outfits        Outfit[]
+
+  @@index([createdById])
+}
+
+model Outfit {
+  id                  String        @id @default(cuid())
+  title               String
+  characterTemplateId String
+  topDesc             String?
+  bottomDesc          String?
+  shoesDesc           String?
+  bagDesc             String?
+  accessoriesDesc     String?
+  materialDesc        String?
+  colorDesc           String?
+  backgroundDesc      String?
+  sceneDesc           String?
+  cameraTemplate      String?
+  motionTemplate      String?
+  aspectRatio         String?
+  durationSec         Int?
+  resolution          String?
+  providerPreference  ProviderName?
+  imageModel          String?
+  videoModel          String?
+  imageCount          Int           @default(4)
+  videoCount          Int           @default(2)
+  status              ReviewStatus  @default(DRAFT)
+  createdById         String
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  characterTemplate CharacterTemplate @relation(fields: [characterTemplateId], references: [id])
+  createdBy         User              @relation(fields: [createdById], references: [id])
+  generationJobs    GenerationJob[]
+  reviews           ReviewRecord[]
+
+  @@index([status])
+  @@index([createdById, createdAt])
+}
+
+model GenerationJob {
+  id             String       @id @default(cuid())
+  outfitId       String
+  stage          JobStage
+  provider       ProviderName
+  model          String
+  inputAssetId   String?
+  outputAssetId  String?
+  providerTaskId String?
+  providerFileId String?
+  status         JobStatus    @default(PENDING)
+  promptText     String?
+  promptJson     Json?
+  seed           Int?
+  candidateIndex Int?
+  durationSec    Int?
+  resolution     String?
+  errorMessage   String?
+  retryCount     Int          @default(0)
+  retryReason    String?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  outfit      Outfit @relation(fields: [outfitId], references: [id])
+  inputAsset  Asset? @relation("JobInputAsset", fields: [inputAssetId], references: [id])
+  outputAsset Asset? @relation("JobOutputAsset", fields: [outputAssetId], references: [id])
+  costs       CostLedger[]
+
+  @@index([outfitId, stage])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Asset {
+  id              String       @id @default(cuid())
+  type            AssetType
+  mimeType        String?
+  width           Int?
+  height          Int?
+  durationMs      Int?
+  provider        ProviderName?
+  providerFileId  String?
+  providerUrl     String?
+  storageBucket   String?
+  storageKey      String?
+  thumbnailKey    String?
+  sha256          String?
+  fileSize        Int?
+  metadataJson    Json?
+  reviewStatus    ReviewStatus @default(GENERATED)
+  isSelectedFrame Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  characterReferences CharacterTemplate[] @relation("CharacterReferenceAsset")
+  jobInputRefs        GenerationJob[]     @relation("JobInputAsset")
+  jobOutputRefs       GenerationJob[]     @relation("JobOutputAsset")
+  reviews             ReviewRecord[]
+
+  @@index([type, reviewStatus])
+  @@index([createdAt])
+}
+
+model CostLedger {
+  id              String       @id @default(cuid())
+  generationJobId String
+  provider        ProviderName
+  model           String
+  currency        String       @default("CNY")
+  amount          Decimal      @db.Decimal(12, 4)
+  billingUnit     BillingUnit
+  rawBillingJson  Json?
+  createdAt       DateTime     @default(now())
+
+  generationJob GenerationJob @relation(fields: [generationJobId], references: [id])
+
+  @@index([provider, createdAt])
+  @@index([generationJobId])
+}
+
+model ReviewRecord {
+  id         String       @id @default(cuid())
+  outfitId   String?
+  assetId    String?
+  reviewerId String
+  status     ReviewStatus
+  comment    String?
+  createdAt  DateTime     @default(now())
+
+  outfit   Outfit? @relation(fields: [outfitId], references: [id])
+  asset    Asset?  @relation(fields: [assetId], references: [id])
+  reviewer User    @relation(fields: [reviewerId], references: [id])
+
+  @@index([assetId])
+  @@index([outfitId])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
