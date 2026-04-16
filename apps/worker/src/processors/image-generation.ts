@@ -1,10 +1,10 @@
-import { Job } from 'bullmq';
-import { prisma } from '@ai-magic/db';
-import { getProvider } from '@ai-magic/providers';
-import { buildImagePrompt } from '@ai-magic/prompts';
-import { storage } from '../lib/storage';
-import { publishJobStatus } from '../lib/publish';
-import { randomUUID } from 'crypto';
+import { Job } from "bullmq";
+import { prisma } from "@ai-magic/db";
+import { getProvider } from "@ai-magic/providers";
+import { buildImagePrompt } from "@ai-magic/prompts";
+import { storage } from "../lib/storage";
+import { publishJobStatus } from "../lib/publish";
+import { randomUUID } from "crypto";
 
 interface ImageJobData {
   generationJobId: string;
@@ -24,16 +24,19 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
 
   await prisma.generationJob.update({
     where: { id: generationJobId },
-    data: { status: 'RUNNING', startedAt: new Date() },
+    data: { status: "RUNNING", startedAt: new Date() },
   });
-  await publishJobStatus(generationJobId, 'RUNNING');
+  await publishJobStatus(generationJobId, "RUNNING");
 
   try {
     const provider = getProvider(genJob.provider);
     const template = genJob.outfit.characterTemplate;
 
     const promptResult = genJob.promptText
-      ? { text: genJob.promptText, json: genJob.promptJson as Record<string, string> || {} }
+      ? {
+          text: genJob.promptText,
+          json: (genJob.promptJson as Record<string, string>) || {},
+        }
       : buildImagePrompt({
           character: {
             genderStyle: template.genderStyle || undefined,
@@ -60,7 +63,9 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
 
     const subjectRefs: string[] = [];
     if (template.referenceAssetId) {
-      const refAsset = await prisma.asset.findUnique({ where: { id: template.referenceAssetId } });
+      const refAsset = await prisma.asset.findUnique({
+        where: { id: template.referenceAssetId },
+      });
       if (refAsset?.storageKey) {
         const url = await storage.getSignedUrl(refAsset.storageKey);
         subjectRefs.push(url);
@@ -71,14 +76,14 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
       prompt: promptResult.text,
       promptJson: promptResult.json,
       count: 1,
-      aspectRatio: genJob.outfit.aspectRatio || '9:16',
+      aspectRatio: genJob.outfit.aspectRatio || "9:16",
       resolution: genJob.resolution || undefined,
       seed: genJob.seed || undefined,
       subjectReferenceUrls: subjectRefs.length > 0 ? subjectRefs : undefined,
     });
 
     if (!result.success || result.items.length === 0) {
-      throw new Error('No images generated');
+      throw new Error("No images generated");
     }
 
     const img = result.items[0];
@@ -88,23 +93,23 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
       const res = await fetch(img.url);
       buffer = Buffer.from(await res.arrayBuffer());
     } else if (img.base64) {
-      buffer = Buffer.from(img.base64, 'base64');
+      buffer = Buffer.from(img.base64, "base64");
     } else {
-      throw new Error('No image data in response');
+      throw new Error("No image data in response");
     }
 
     const storageKey = `images/${randomUUID()}.png`;
-    await storage.put(storageKey, buffer, 'image/png');
+    await storage.put(storageKey, buffer, "image/png");
 
     const asset = await prisma.asset.create({
       data: {
-        type: 'IMAGE',
-        mimeType: 'image/png',
+        type: "IMAGE",
+        mimeType: "image/png",
         width: img.width,
         height: img.height,
         provider: genJob.provider,
         providerUrl: img.url,
-        storageBucket: process.env.S3_BUCKET || 'ai-magic',
+        storageBucket: process.env.S3_BUCKET || "ai-magic",
         storageKey,
         fileSize: buffer.length,
         metadataJson: img.metadata || {},
@@ -112,7 +117,7 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
     });
 
     const costEst = provider.estimateCost({
-      stage: 'IMAGE',
+      stage: "IMAGE",
       model: genJob.model,
       count: 1,
       resolution: genJob.resolution || undefined,
@@ -125,15 +130,15 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
         model: genJob.model,
         currency: costEst.currency,
         amount: costEst.amount,
-        billingUnit: 'PER_IMAGE',
-        rawBillingJson: result.raw as object || {},
+        billingUnit: "PER_IMAGE",
+        rawBillingJson: (result.raw as object) || {},
       },
     });
 
     await prisma.generationJob.update({
       where: { id: generationJobId },
       data: {
-        status: 'SUCCEEDED',
+        status: "SUCCEEDED",
         outputAssetId: asset.id,
         promptText: promptResult.text,
         promptJson: promptResult.json,
@@ -142,14 +147,14 @@ export async function processImageGeneration(job: Job<ImageJobData>) {
       },
     });
 
-    await publishJobStatus(generationJobId, 'SUCCEEDED', { assetId: asset.id });
+    await publishJobStatus(generationJobId, "SUCCEEDED", { assetId: asset.id });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
+    const msg = error instanceof Error ? error.message : "Unknown error";
     await prisma.generationJob.update({
       where: { id: generationJobId },
-      data: { status: 'FAILED', errorMessage: msg, finishedAt: new Date() },
+      data: { status: "FAILED", errorMessage: msg, finishedAt: new Date() },
     });
-    await publishJobStatus(generationJobId, 'FAILED', { error: msg });
+    await publishJobStatus(generationJobId, "FAILED", { error: msg });
     throw error;
   }
 }

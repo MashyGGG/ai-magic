@@ -1,7 +1,15 @@
-'use client';
+"use client";
 
-import { Drawer, Descriptions, Tag, Skeleton, Empty, List, Typography } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import {
+  Drawer,
+  Descriptions,
+  Tag,
+  Skeleton,
+  Empty,
+  List,
+  Typography,
+} from "antd";
+import { useQuery } from "@tanstack/react-query";
 
 const { Text } = Typography;
 
@@ -12,7 +20,7 @@ interface Props {
 
 export function TemplateDetailDrawer({ templateId, onClose }: Props) {
   const { data, isLoading } = useQuery({
-    queryKey: ['template', templateId],
+    queryKey: ["template", templateId],
     queryFn: async () => {
       const res = await fetch(`/api/character-templates/${templateId}`);
       const json = await res.json();
@@ -26,7 +34,8 @@ export function TemplateDetailDrawer({ templateId, onClose }: Props) {
       title="模板详情"
       open={!!templateId}
       onClose={onClose}
-      width={520}
+      size="large"
+      forceRender
     >
       {isLoading ? (
         <Skeleton active />
@@ -46,17 +55,39 @@ export function TemplateDetailDrawer({ templateId, onClose }: Props) {
 
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="名称">{data.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">{data.description || '-'}</Descriptions.Item>
-            <Descriptions.Item label="性别风格">{data.genderStyle || '-'}</Descriptions.Item>
-            <Descriptions.Item label="年龄感">{data.ageStyle || '-'}</Descriptions.Item>
-            <Descriptions.Item label="脸型">{data.faceDesc || '-'}</Descriptions.Item>
-            <Descriptions.Item label="发型">{data.hairDesc || '-'}</Descriptions.Item>
-            <Descriptions.Item label="肤色">{data.skinDesc || '-'}</Descriptions.Item>
-            <Descriptions.Item label="身材">{data.bodyDesc || '-'}</Descriptions.Item>
-            <Descriptions.Item label="气质">{data.vibeDesc || '-'}</Descriptions.Item>
-            <Descriptions.Item label="默认镜头"><Tag>{data.defaultCamera || '未设置'}</Tag></Descriptions.Item>
-            <Descriptions.Item label="默认动作"><Tag>{data.defaultMotion || '未设置'}</Tag></Descriptions.Item>
-            <Descriptions.Item label="默认场景"><Tag>{data.defaultScene || '未设置'}</Tag></Descriptions.Item>
+            <Descriptions.Item label="描述">
+              {data.description || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="性别风格">
+              {data.genderStyle || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="年龄感">
+              {data.ageStyle || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="脸型">
+              {data.faceDesc || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="发型">
+              {data.hairDesc || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="肤色">
+              {data.skinDesc || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="身材">
+              {data.bodyDesc || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="气质">
+              {data.vibeDesc || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="默认镜头">
+              <Tag>{data.defaultCamera || "未设置"}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="默认动作">
+              <Tag>{data.defaultMotion || "未设置"}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="默认场景">
+              <Tag>{data.defaultScene || "未设置"}</Tag>
+            </Descriptions.Item>
           </Descriptions>
 
           {data.outfits?.length > 0 && (
@@ -65,7 +96,11 @@ export function TemplateDetailDrawer({ templateId, onClose }: Props) {
               <List
                 size="small"
                 dataSource={data.outfits}
-                renderItem={(outfit: { id: string; title: string; status: string }) => (
+                renderItem={(outfit: {
+                  id: string;
+                  title: string;
+                  status: string;
+                }) => (
                   <List.Item>
                     <Text>{outfit.title}</Text>
                     <Tag>{outfit.status}</Tag>

@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { prisma } from '@ai-magic/db';
-import { ok, paginated, fail } from '@ai-magic/shared';
-import { paginationSchema } from '@ai-magic/shared';
-import { requireUser, handleApiError } from '@/lib/api-utils';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@ai-magic/db";
+import { ok, paginated, fail } from "@ai-magic/shared";
+import { paginationSchema } from "@ai-magic/shared";
+import { requireUser, handleApiError } from "@/lib/api-utils";
 
 const createSchema = z.object({
-  name: z.string().min(1, '模板名称不能为空'),
+  name: z.string().min(1, "模板名称不能为空"),
   description: z.string().optional(),
   genderStyle: z.string().optional(),
   ageStyle: z.string().optional(),
@@ -26,20 +26,24 @@ export async function GET(req: NextRequest) {
     await requireUser();
     const url = new URL(req.url);
     const { page, pageSize } = paginationSchema.parse({
-      page: url.searchParams.get('page'),
-      pageSize: url.searchParams.get('pageSize'),
+      page: url.searchParams.get("page"),
+      pageSize: url.searchParams.get("pageSize"),
     });
-    const keyword = url.searchParams.get('keyword') || '';
+    const keyword = url.searchParams.get("keyword") || "";
 
     const where = keyword
-      ? { name: { contains: keyword, mode: 'insensitive' as const } }
+      ? { name: { contains: keyword, mode: "insensitive" as const } }
       : {};
 
     const [items, total] = await Promise.all([
       prisma.characterTemplate.findMany({
         where,
-        include: { referenceAsset: { select: { id: true, storageKey: true, mimeType: true } } },
-        orderBy: { createdAt: 'desc' },
+        include: {
+          referenceAsset: {
+            select: { id: true, storageKey: true, mimeType: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -58,7 +62,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(fail('INVALID_INPUT', parsed.error.issues[0].message), { status: 400 });
+      return NextResponse.json(
+        fail("INVALID_INPUT", parsed.error.issues[0].message),
+        { status: 400 },
+      );
     }
 
     const template = await prisma.characterTemplate.create({

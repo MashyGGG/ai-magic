@@ -1,35 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@ai-magic/db';
-import { paginated } from '@ai-magic/shared';
-import { paginationSchema } from '@ai-magic/shared';
-import { requireUser, handleApiError } from '@/lib/api-utils';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@ai-magic/db";
+import { paginated } from "@ai-magic/shared";
+import { paginationSchema } from "@ai-magic/shared";
+import { requireUser, handleApiError } from "@/lib/api-utils";
 
 export async function GET(req: NextRequest) {
   try {
     await requireUser();
     const url = new URL(req.url);
     const { page, pageSize } = paginationSchema.parse({
-      page: url.searchParams.get('page'),
-      pageSize: url.searchParams.get('pageSize'),
+      page: url.searchParams.get("page"),
+      pageSize: url.searchParams.get("pageSize"),
     });
 
     const where: Record<string, unknown> = {};
-    const type = url.searchParams.get('type');
+    const type = url.searchParams.get("type");
     if (type) where.type = type;
-    const reviewStatus = url.searchParams.get('reviewStatus');
+    const reviewStatus = url.searchParams.get("reviewStatus");
     if (reviewStatus) where.reviewStatus = reviewStatus;
-    const provider = url.searchParams.get('provider');
+    const provider = url.searchParams.get("provider");
     if (provider) where.provider = provider;
 
     const [items, total] = await Promise.all([
       prisma.asset.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
           jobOutputRefs: {
-            select: { id: true, outfitId: true, stage: true, model: true, promptText: true, seed: true },
+            select: {
+              id: true,
+              outfitId: true,
+              stage: true,
+              model: true,
+              promptText: true,
+              seed: true,
+            },
             take: 1,
           },
         },

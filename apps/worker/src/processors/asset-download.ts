@@ -1,9 +1,9 @@
-import { Job } from 'bullmq';
-import { prisma } from '@ai-magic/db';
-import { getProvider } from '@ai-magic/providers';
-import { storage } from '../lib/storage';
-import { publishJobStatus } from '../lib/publish';
-import { randomUUID } from 'crypto';
+import { Job } from "bullmq";
+import { prisma } from "@ai-magic/db";
+import { getProvider } from "@ai-magic/providers";
+import { storage } from "../lib/storage";
+import { publishJobStatus } from "../lib/publish";
+import { randomUUID } from "crypto";
 
 interface DownloadJobData {
   generationJobId: string;
@@ -13,7 +13,12 @@ interface DownloadJobData {
 }
 
 export async function processAssetDownload(job: Job<DownloadJobData>) {
-  const { generationJobId, providerFileId, outputUrl, provider: providerName } = job.data;
+  const {
+    generationJobId,
+    providerFileId,
+    outputUrl,
+    provider: providerName,
+  } = job.data;
 
   try {
     const genJob = await prisma.generationJob.findUnique({
@@ -27,24 +32,28 @@ export async function processAssetDownload(job: Job<DownloadJobData>) {
       url: outputUrl,
     });
 
-    const ext = result.mimeType?.includes('mp4') ? 'mp4' : 'mp4';
+    const ext = result.mimeType?.includes("mp4") ? "mp4" : "mp4";
     const storageKey = `videos/${randomUUID()}.${ext}`;
-    await storage.put(storageKey, result.buffer, result.mimeType || 'video/mp4');
+    await storage.put(
+      storageKey,
+      result.buffer,
+      result.mimeType || "video/mp4",
+    );
 
     const asset = await prisma.asset.create({
       data: {
-        type: 'VIDEO',
-        mimeType: result.mimeType || 'video/mp4',
+        type: "VIDEO",
+        mimeType: result.mimeType || "video/mp4",
         provider: genJob.provider,
         providerFileId: providerFileId,
-        storageBucket: process.env.S3_BUCKET || 'ai-magic',
+        storageBucket: process.env.S3_BUCKET || "ai-magic",
         storageKey,
         fileSize: result.buffer.length,
       },
     });
 
     const costEst = provider.estimateCost({
-      stage: 'VIDEO',
+      stage: "VIDEO",
       model: genJob.model,
       count: 1,
       resolution: genJob.resolution || undefined,
@@ -58,7 +67,7 @@ export async function processAssetDownload(job: Job<DownloadJobData>) {
         model: genJob.model,
         currency: costEst.currency,
         amount: costEst.amount,
-        billingUnit: 'PER_SECOND',
+        billingUnit: "PER_SECOND",
         rawBillingJson: {},
       },
     });
@@ -66,20 +75,24 @@ export async function processAssetDownload(job: Job<DownloadJobData>) {
     await prisma.generationJob.update({
       where: { id: generationJobId },
       data: {
-        status: 'SUCCEEDED',
+        status: "SUCCEEDED",
         outputAssetId: asset.id,
         finishedAt: new Date(),
       },
     });
 
-    await publishJobStatus(generationJobId, 'SUCCEEDED', { assetId: asset.id });
+    await publishJobStatus(generationJobId, "SUCCEEDED", { assetId: asset.id });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Download failed';
+    const msg = error instanceof Error ? error.message : "Download failed";
     await prisma.generationJob.update({
       where: { id: generationJobId },
-      data: { status: 'DOWNLOAD_FAILED', errorMessage: msg, finishedAt: new Date() },
+      data: {
+        status: "DOWNLOAD_FAILED",
+        errorMessage: msg,
+        finishedAt: new Date(),
+      },
     });
-    await publishJobStatus(generationJobId, 'DOWNLOAD_FAILED', { error: msg });
+    await publishJobStatus(generationJobId, "DOWNLOAD_FAILED", { error: msg });
     throw error;
   }
 }

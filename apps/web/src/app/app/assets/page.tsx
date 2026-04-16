@@ -1,14 +1,34 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Typography, Select, DatePicker, Card, Tag, Pagination, Drawer, Descriptions, Skeleton, Empty, Button } from 'antd';
-import { PlayCircleOutlined, PictureOutlined, DownloadOutlined } from '@ant-design/icons';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Typography,
+  Select,
+  DatePicker,
+  Card,
+  Tag,
+  Pagination,
+  Drawer,
+  Descriptions,
+  Skeleton,
+  Empty,
+  Button,
+} from "antd";
+import {
+  PlayCircleOutlined,
+  PictureOutlined,
+  DownloadOutlined,
+} from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
 const statusColors: Record<string, string> = {
-  GENERATED: 'processing', REVIEWING: 'warning', APPROVED: 'success', REJECTED: 'error', ARCHIVED: 'default',
+  GENERATED: "processing",
+  REVIEWING: "warning",
+  APPROVED: "success",
+  REJECTED: "error",
+  ARCHIVED: "default",
 };
 
 interface AssetItem {
@@ -20,7 +40,14 @@ interface AssetItem {
   isSelectedFrame: boolean;
   createdAt: string;
   storageKey?: string;
-  jobOutputRefs?: { id: string; outfitId: string; stage: string; model: string; promptText?: string; seed?: number }[];
+  jobOutputRefs?: {
+    id: string;
+    outfitId: string;
+    stage: string;
+    model: string;
+    promptText?: string;
+    seed?: number;
+  }[];
 }
 
 export default function AssetsPage() {
@@ -30,18 +57,21 @@ export default function AssetsPage() {
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['assets', page, typeFilter, statusFilter],
+    queryKey: ["assets", page, typeFilter, statusFilter],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: '20' });
-      if (typeFilter) params.set('type', typeFilter);
-      if (statusFilter) params.set('reviewStatus', statusFilter);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: "20",
+      });
+      if (typeFilter) params.set("type", typeFilter);
+      if (statusFilter) params.set("reviewStatus", statusFilter);
       const res = await fetch(`/api/assets?${params}`);
       return res.json();
     },
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: ['asset-detail', selectedAsset],
+    queryKey: ["asset-detail", selectedAsset],
     queryFn: async () => {
       const res = await fetch(`/api/assets/${selectedAsset}`);
       return res.json();
@@ -61,10 +91,13 @@ export default function AssetsPage() {
           placeholder="资产类型"
           allowClear
           value={typeFilter}
-          onChange={(v) => { setTypeFilter(v); setPage(1); }}
+          onChange={(v) => {
+            setTypeFilter(v);
+            setPage(1);
+          }}
           options={[
-            { value: 'IMAGE', label: '图片' },
-            { value: 'VIDEO', label: '视频' },
+            { value: "IMAGE", label: "图片" },
+            { value: "VIDEO", label: "视频" },
           ]}
           style={{ width: 120 }}
         />
@@ -72,12 +105,15 @@ export default function AssetsPage() {
           placeholder="审核状态"
           allowClear
           value={statusFilter}
-          onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
           options={[
-            { value: 'GENERATED', label: '已生成' },
-            { value: 'REVIEWING', label: '审核中' },
-            { value: 'APPROVED', label: '已通过' },
-            { value: 'REJECTED', label: '已驳回' },
+            { value: "GENERATED", label: "已生成" },
+            { value: "REVIEWING", label: "审核中" },
+            { value: "APPROVED", label: "已通过" },
+            { value: "REJECTED", label: "已驳回" },
           ]}
           style={{ width: 120 }}
         />
@@ -85,7 +121,11 @@ export default function AssetsPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => <Card key={i}><Skeleton.Image active style={{ width: '100%' }} /></Card>)}
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <Skeleton.Image active style={{ width: "100%" }} />
+            </Card>
+          ))}
         </div>
       ) : items.length === 0 ? (
         <Empty description="暂无资产" />
@@ -100,14 +140,26 @@ export default function AssetsPage() {
                 onClick={() => setSelectedAsset(item.id)}
                 cover={
                   <div className="relative flex h-40 items-center justify-center bg-gray-100">
-                    {item.type === 'IMAGE' ? (
-                      <img src={`/api/assets/${item.id}/url`} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    {item.type === "IMAGE" ? (
+                      <img
+                        src={`/api/assets/${item.id}/url`}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
                     ) : (
-                      <PlayCircleOutlined style={{ fontSize: 48, color: '#999' }} />
+                      <PlayCircleOutlined
+                        style={{ fontSize: 48, color: "#999" }}
+                      />
                     )}
                     <div className="absolute left-2 top-2">
-                      <Tag color={item.type === 'IMAGE' ? 'blue' : 'purple'}>
-                        {item.type === 'IMAGE' ? <PictureOutlined /> : <PlayCircleOutlined />} {item.type}
+                      <Tag color={item.type === "IMAGE" ? "blue" : "purple"}>
+                        {item.type === "IMAGE" ? (
+                          <PictureOutlined />
+                        ) : (
+                          <PlayCircleOutlined />
+                        )}{" "}
+                        {item.type}
                       </Tag>
                     </div>
                     {item.isSelectedFrame && (
@@ -119,58 +171,109 @@ export default function AssetsPage() {
                 }
               >
                 <div className="flex items-center justify-between">
-                  <Tag color={statusColors[item.reviewStatus]} size="small">{item.reviewStatus}</Tag>
-                  <Text type="secondary" className="text-xs">{new Date(item.createdAt).toLocaleDateString('zh-CN')}</Text>
+                  <Tag color={statusColors[item.reviewStatus]}>
+                    {item.reviewStatus}
+                  </Tag>
+                  <Text type="secondary" className="text-xs">
+                    {new Date(item.createdAt).toLocaleDateString("zh-CN")}
+                  </Text>
                 </div>
               </Card>
             ))}
           </div>
           {total > 20 && (
             <div className="mt-6 flex justify-end">
-              <Pagination current={page} total={total} pageSize={20} onChange={setPage} showSizeChanger={false} />
+              <Pagination
+                current={page}
+                total={total}
+                pageSize={20}
+                onChange={setPage}
+                showSizeChanger={false}
+              />
             </div>
           )}
         </>
       )}
 
-      <Drawer title="资产详情" open={!!selectedAsset} onClose={() => setSelectedAsset(null)} width={520}>
+      <Drawer
+        title="资产详情"
+        open={!!selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+        size="large"
+        forceRender
+      >
         {detailLoading ? (
           <Skeleton active />
         ) : !detailData?.data ? (
           <Empty />
         ) : (
           <div className="space-y-4">
-            {detailData.data.type === 'IMAGE' ? (
-              <img src={`/api/assets/${detailData.data.id}/url`} alt="" className="w-full rounded-lg" />
+            {detailData.data.type === "IMAGE" ? (
+              <img
+                src={`/api/assets/${detailData.data.id}/url`}
+                alt=""
+                className="w-full rounded-lg"
+              />
             ) : (
-              <video src={`/api/assets/${detailData.data.id}/url`} controls className="w-full rounded-lg" preload="none" />
+              <video
+                src={`/api/assets/${detailData.data.id}/url`}
+                controls
+                className="w-full rounded-lg"
+                preload="none"
+              />
             )}
 
             <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="类型">{detailData.data.type}</Descriptions.Item>
-              <Descriptions.Item label="状态"><Tag color={statusColors[detailData.data.reviewStatus]}>{detailData.data.reviewStatus}</Tag></Descriptions.Item>
-              <Descriptions.Item label="Provider">{detailData.data.provider || '-'}</Descriptions.Item>
-              <Descriptions.Item label="文件大小">{detailData.data.fileSize ? `${(detailData.data.fileSize / 1024).toFixed(1)} KB` : '-'}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{new Date(detailData.data.createdAt).toLocaleString('zh-CN')}</Descriptions.Item>
+              <Descriptions.Item label="类型">
+                {detailData.data.type}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag color={statusColors[detailData.data.reviewStatus]}>
+                  {detailData.data.reviewStatus}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Provider">
+                {detailData.data.provider || "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="文件大小">
+                {detailData.data.fileSize
+                  ? `${(detailData.data.fileSize / 1024).toFixed(1)} KB`
+                  : "-"}
+              </Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {new Date(detailData.data.createdAt).toLocaleString("zh-CN")}
+              </Descriptions.Item>
             </Descriptions>
 
             {detailData.data.jobOutputRefs?.[0] && (
               <Card title="来源任务" size="small">
                 <Descriptions column={1} size="small">
-                  <Descriptions.Item label="模型">{detailData.data.jobOutputRefs[0].model}</Descriptions.Item>
+                  <Descriptions.Item label="模型">
+                    {detailData.data.jobOutputRefs[0].model}
+                  </Descriptions.Item>
                   {detailData.data.jobOutputRefs[0].seed && (
-                    <Descriptions.Item label="Seed">{detailData.data.jobOutputRefs[0].seed}</Descriptions.Item>
+                    <Descriptions.Item label="Seed">
+                      {detailData.data.jobOutputRefs[0].seed}
+                    </Descriptions.Item>
                   )}
                   {detailData.data.jobOutputRefs[0].promptText && (
                     <Descriptions.Item label="Prompt">
-                      <div className="max-h-32 overflow-auto text-xs">{detailData.data.jobOutputRefs[0].promptText}</div>
+                      <div className="max-h-32 overflow-auto text-xs">
+                        {detailData.data.jobOutputRefs[0].promptText}
+                      </div>
                     </Descriptions.Item>
                   )}
                 </Descriptions>
               </Card>
             )}
 
-            <Button icon={<DownloadOutlined />} block onClick={() => window.open(`/api/assets/${detailData.data.id}/url`)}>
+            <Button
+              icon={<DownloadOutlined />}
+              block
+              onClick={() =>
+                window.open(`/api/assets/${detailData.data.id}/url`)
+              }
+            >
               下载
             </Button>
           </div>

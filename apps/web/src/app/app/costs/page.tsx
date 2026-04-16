@@ -1,10 +1,23 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Typography, Card, Statistic, Row, Col, DatePicker, Skeleton, Table, Tag } from 'antd';
-import { ArrowUpOutlined, ArrowDownOutlined, DollarOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Typography,
+  Card,
+  Statistic,
+  Row,
+  Col,
+  DatePicker,
+  Skeleton,
+  Table,
+  Tag,
+} from "antd";
+import {
+  DollarOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+} from "@ant-design/icons";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -13,12 +26,12 @@ export default function CostsPage() {
   const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['costs-summary', dateRange],
+    queryKey: ["costs-summary", dateRange],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (dateRange) {
-        params.set('from', dateRange[0]);
-        params.set('to', dateRange[1]);
+        params.set("from", dateRange[0]);
+        params.set("to", dateRange[1]);
       }
       const r = await fetch(`/api/costs/summary?${params}`);
       return r.json();
@@ -28,17 +41,27 @@ export default function CostsPage() {
   const summary = data?.data;
 
   const providerData = summary?.byProvider
-    ? Object.entries(summary.byProvider).map(([name, amount]) => ({ key: name, name, amount: Number(amount) }))
+    ? Object.entries(summary.byProvider).map(([name, amount]) => ({
+        key: name,
+        name,
+        amount: Number(amount),
+      }))
     : [];
 
   const modelData = summary?.byModel
-    ? Object.entries(summary.byModel).map(([name, amount]) => ({ key: name, name, amount: Number(amount) }))
+    ? Object.entries(summary.byModel).map(([name, amount]) => ({
+        key: name,
+        name,
+        amount: Number(amount),
+      }))
     : [];
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <Title level={3} style={{ margin: 0 }}>成本统计</Title>
+        <Title level={3} style={{ margin: 0 }}>
+          成本统计
+        </Title>
         <RangePicker
           onChange={(dates) => {
             if (dates?.[0] && dates?.[1]) {
@@ -63,7 +86,7 @@ export default function CostsPage() {
                   precision={2}
                   prefix={<DollarOutlined />}
                   suffix="CNY"
-                  valueStyle={{ color: '#c9a96e' }}
+                  style={{ color: "#c9a96e" } as React.CSSProperties}
                 />
               </Card>
             </Col>
@@ -78,7 +101,7 @@ export default function CostsPage() {
                   title="成功率"
                   value={summary?.successRate || 0}
                   suffix="%"
-                  valueStyle={{ color: '#52c41a' }}
+                  style={{ color: "#52c41a" } as React.CSSProperties}
                   prefix={<CheckCircleOutlined />}
                 />
               </Card>
@@ -88,7 +111,11 @@ export default function CostsPage() {
                 <Statistic
                   title="失败任务"
                   value={summary?.failedCount || 0}
-                  valueStyle={{ color: summary?.failedCount > 0 ? '#ff4d4f' : undefined }}
+                  style={
+                    {
+                      color: summary?.failedCount > 0 ? "#ff4d4f" : undefined,
+                    } as React.CSSProperties
+                  }
                   prefix={<CloseCircleOutlined />}
                 />
               </Card>
@@ -101,8 +128,16 @@ export default function CostsPage() {
                 <Table
                   dataSource={providerData}
                   columns={[
-                    { title: 'Provider', dataIndex: 'name', render: (v: string) => <Tag>{v}</Tag> },
-                    { title: '金额 (CNY)', dataIndex: 'amount', render: (v: number) => `¥${v.toFixed(4)}` },
+                    {
+                      title: "Provider",
+                      dataIndex: "name",
+                      render: (v: string) => <Tag>{v}</Tag>,
+                    },
+                    {
+                      title: "金额 (CNY)",
+                      dataIndex: "amount",
+                      render: (v: number) => `¥${v.toFixed(4)}`,
+                    },
                   ]}
                   pagination={false}
                   size="small"
@@ -114,8 +149,12 @@ export default function CostsPage() {
                 <Table
                   dataSource={modelData}
                   columns={[
-                    { title: '模型', dataIndex: 'name' },
-                    { title: '金额 (CNY)', dataIndex: 'amount', render: (v: number) => `¥${v.toFixed(4)}` },
+                    { title: "模型", dataIndex: "name" },
+                    {
+                      title: "金额 (CNY)",
+                      dataIndex: "amount",
+                      render: (v: number) => `¥${v.toFixed(4)}`,
+                    },
                   ]}
                   pagination={false}
                   size="small"

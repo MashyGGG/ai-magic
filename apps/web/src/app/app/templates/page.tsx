@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Typography,
   Button,
@@ -15,10 +15,34 @@ import {
   Pagination,
   App,
   Popconfirm,
-} from 'antd';
-import { PlusOutlined, SearchOutlined, DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
-import { TemplateFormDrawer } from './template-form-drawer';
-import { TemplateDetailDrawer } from './template-detail-drawer';
+} from "antd";
+import {
+  PlusOutlined,
+  SearchOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+} from "@ant-design/icons";
+import dynamic from "next/dynamic";
+
+const TemplateFormDrawer = dynamic<{
+  open: boolean;
+  editId: string | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}>(
+  () => import("./template-form-drawer").then((mod) => mod.TemplateFormDrawer),
+  { ssr: false },
+);
+
+const TemplateDetailDrawer = dynamic<{
+  templateId: string | null;
+  onClose: () => void;
+}>(
+  () =>
+    import("./template-detail-drawer").then((mod) => mod.TemplateDetailDrawer),
+  { ssr: false },
+);
 
 const { Title } = Typography;
 
@@ -33,14 +57,19 @@ interface TemplateItem {
 }
 
 async function fetchTemplates(page: number, pageSize: number, keyword: string) {
-  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-  if (keyword) params.set('keyword', keyword);
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  if (keyword) params.set("keyword", keyword);
   const res = await fetch(`/api/character-templates?${params}`);
   return res.json();
 }
 
 async function deleteTemplate(id: string) {
-  const res = await fetch(`/api/character-templates/${id}`, { method: 'DELETE' });
+  const res = await fetch(`/api/character-templates/${id}`, {
+    method: "DELETE",
+  });
   return res.json();
 }
 
@@ -48,14 +77,14 @@ export default function TemplatesPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [keyword, setKeyword] = useState('');
-  const [searchValue, setSearchValue] = useState('');
+  const [keyword, setKeyword] = useState("");
+  const [searchValue, setSearchValue] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['templates', page, keyword],
+    queryKey: ["templates", page, keyword],
     queryFn: () => fetchTemplates(page, 12, keyword),
   });
 
@@ -63,10 +92,10 @@ export default function TemplatesPage() {
     mutationFn: deleteTemplate,
     onSuccess: (res) => {
       if (res.success) {
-        message.success('删除成功');
-        queryClient.invalidateQueries({ queryKey: ['templates'] });
+        message.success("删除成功");
+        queryClient.invalidateQueries({ queryKey: ["templates"] });
       } else {
-        message.error(res.error?.message || '删除失败');
+        message.error(res.error?.message || "删除失败");
       }
     },
   });
@@ -77,8 +106,17 @@ export default function TemplatesPage() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <Title level={3} style={{ margin: 0 }}>角色模板</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditId(null); setFormOpen(true); }}>
+        <Title level={3} style={{ margin: 0 }}>
+          角色模板
+        </Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditId(null);
+            setFormOpen(true);
+          }}
+        >
           新建模板
         </Button>
       </div>
@@ -89,9 +127,15 @@ export default function TemplatesPage() {
           prefix={<SearchOutlined />}
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
-          onPressEnter={() => { setKeyword(searchValue); setPage(1); }}
+          onPressEnter={() => {
+            setKeyword(searchValue);
+            setPage(1);
+          }}
           allowClear
-          onClear={() => { setKeyword(''); setPage(1); }}
+          onClear={() => {
+            setKeyword("");
+            setPage(1);
+          }}
           style={{ maxWidth: 320 }}
         />
       </div>
@@ -100,13 +144,23 @@ export default function TemplatesPage() {
         <Row gutter={[16, 16]}>
           {[1, 2, 3, 4].map((i) => (
             <Col key={i} xs={24} sm={12} md={8} lg={6}>
-              <Card><Skeleton active /></Card>
+              <Card>
+                <Skeleton active />
+              </Card>
             </Col>
           ))}
         </Row>
       ) : items.length === 0 ? (
         <Empty description="还没有角色模板">
-          <Button type="primary" onClick={() => { setEditId(null); setFormOpen(true); }}>立即创建</Button>
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditId(null);
+              setFormOpen(true);
+            }}
+          >
+            立即创建
+          </Button>
         </Empty>
       ) : (
         <>
@@ -123,7 +177,10 @@ export default function TemplatesPage() {
                           src={`/api/assets/${item.referenceAsset.id}/url`}
                           alt={item.name}
                           className="h-full w-full object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                          }}
                         />
                       </div>
                     ) : (
@@ -133,9 +190,22 @@ export default function TemplatesPage() {
                     )
                   }
                   actions={[
-                    <EyeOutlined key="view" onClick={() => setDetailId(item.id)} />,
-                    <EditOutlined key="edit" onClick={() => { setEditId(item.id); setFormOpen(true); }} />,
-                    <Popconfirm key="del" title="确定删除？" onConfirm={() => deleteMutation.mutate(item.id)}>
+                    <EyeOutlined
+                      key="view"
+                      onClick={() => setDetailId(item.id)}
+                    />,
+                    <EditOutlined
+                      key="edit"
+                      onClick={() => {
+                        setEditId(item.id);
+                        setFormOpen(true);
+                      }}
+                    />,
+                    <Popconfirm
+                      key="del"
+                      title="确定删除？"
+                      onConfirm={() => deleteMutation.mutate(item.id)}
+                    >
                       <DeleteOutlined />
                     </Popconfirm>,
                   ]}
@@ -145,8 +215,12 @@ export default function TemplatesPage() {
                     description={
                       <div className="flex flex-wrap gap-1">
                         {item.genderStyle && <Tag>{item.genderStyle}</Tag>}
-                        {item.defaultCamera && <Tag color="blue">{item.defaultCamera}</Tag>}
-                        {item.defaultMotion && <Tag color="green">{item.defaultMotion}</Tag>}
+                        {item.defaultCamera && (
+                          <Tag color="blue">{item.defaultCamera}</Tag>
+                        )}
+                        {item.defaultMotion && (
+                          <Tag color="green">{item.defaultMotion}</Tag>
+                        )}
                       </div>
                     }
                   />
@@ -156,7 +230,13 @@ export default function TemplatesPage() {
           </Row>
           {total > 12 && (
             <div className="mt-6 flex justify-end">
-              <Pagination current={page} total={total} pageSize={12} onChange={setPage} showSizeChanger={false} />
+              <Pagination
+                current={page}
+                total={total}
+                pageSize={12}
+                onChange={setPage}
+                showSizeChanger={false}
+              />
             </div>
           )}
         </>
@@ -168,7 +248,7 @@ export default function TemplatesPage() {
         onClose={() => setFormOpen(false)}
         onSuccess={() => {
           setFormOpen(false);
-          queryClient.invalidateQueries({ queryKey: ['templates'] });
+          queryClient.invalidateQueries({ queryKey: ["templates"] });
         }}
       />
 

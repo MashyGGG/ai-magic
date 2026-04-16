@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Layout, Menu, Avatar, Dropdown, Breadcrumb, Typography } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Breadcrumb, Typography } from "antd";
 import {
   DashboardOutlined,
   UserOutlined,
@@ -11,33 +11,33 @@ import {
   DollarOutlined,
   SettingOutlined,
   LogoutOutlined,
-} from '@ant-design/icons';
-import { useRouter, usePathname } from 'next/navigation';
-import { useState } from 'react';
-import type { MenuProps } from 'antd';
+} from "@ant-design/icons";
+import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
+import type { MenuProps } from "antd";
 
 const { Sider, Content, Header } = Layout;
 const { Text } = Typography;
 
-const menuItems: MenuProps['items'] = [
-  { key: '/app/dashboard', icon: <DashboardOutlined />, label: '控制台' },
-  { key: '/app/templates', icon: <UserOutlined />, label: '角色模板' },
-  { key: '/app/outfits', icon: <SkinOutlined />, label: '穿搭任务' },
-  { key: '/app/assets', icon: <PictureOutlined />, label: '资产库' },
-  { key: '/app/reviews', icon: <AuditOutlined />, label: '审核' },
-  { key: '/app/costs', icon: <DollarOutlined />, label: '成本统计' },
-  { type: 'divider' },
-  { key: '/app/settings', icon: <SettingOutlined />, label: '系统设置' },
+const menuItems: MenuProps["items"] = [
+  { key: "/app/dashboard", icon: <DashboardOutlined />, label: "控制台" },
+  { key: "/app/templates", icon: <UserOutlined />, label: "角色模板" },
+  { key: "/app/outfits", icon: <SkinOutlined />, label: "穿搭任务" },
+  { key: "/app/assets", icon: <PictureOutlined />, label: "资产库" },
+  { key: "/app/reviews", icon: <AuditOutlined />, label: "审核" },
+  { key: "/app/costs", icon: <DollarOutlined />, label: "成本统计" },
+  { type: "divider" },
+  { key: "/app/settings", icon: <SettingOutlined />, label: "系统设置" },
 ];
 
 const breadcrumbMap: Record<string, string> = {
-  '/app/dashboard': '控制台',
-  '/app/templates': '角色模板',
-  '/app/outfits': '穿搭任务',
-  '/app/assets': '资产库',
-  '/app/reviews': '审核',
-  '/app/costs': '成本统计',
-  '/app/settings': '系统设置',
+  "/app/dashboard": "控制台",
+  "/app/templates": "角色模板",
+  "/app/outfits": "穿搭任务",
+  "/app/assets": "资产库",
+  "/app/reviews": "审核",
+  "/app/costs": "成本统计",
+  "/app/settings": "系统设置",
 };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -45,20 +45,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  const selectedKey = Object.keys(breadcrumbMap).find((k) => pathname.startsWith(k)) || '/app/dashboard';
+  const selectedKey =
+    Object.keys(breadcrumbMap).find((k) => pathname.startsWith(k)) ||
+    "/app/dashboard";
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
   };
 
-  const userMenu: MenuProps['items'] = [
-    { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
+  const userMenu: MenuProps["items"] = [
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "退出登录",
+      onClick: handleLogout,
+    },
   ];
 
   const breadcrumbItems = [
-    { title: '首页' },
-    ...(breadcrumbMap[selectedKey] ? [{ title: breadcrumbMap[selectedKey] }] : []),
+    { title: "首页" },
+    ...(breadcrumbMap[selectedKey]
+      ? [{ title: breadcrumbMap[selectedKey] }]
+      : []),
   ];
 
   return (
@@ -70,17 +79,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         width={220}
         theme="dark"
         className="fixed left-0 top-0 bottom-0 z-10"
-        style={{ overflow: 'auto', height: '100vh' }}
+        style={{ overflow: "auto" }}
       >
         <div className="flex h-14 items-center justify-center gap-2 border-b border-white/10">
           <div
             className="flex h-8 w-8 items-center justify-center rounded-lg"
-            style={{ backgroundColor: 'rgba(201, 169, 110, 0.2)' }}
+            style={{ backgroundColor: "rgba(201, 169, 110, 0.2)" }}
           >
-            <VideoCameraOutlined style={{ color: '#c9a96e', fontSize: 16 }} />
+            <VideoCameraOutlined style={{ color: "#c9a96e", fontSize: 16 }} />
           </div>
           {!collapsed && (
-            <Text strong style={{ color: '#e8d5b0', fontSize: 14, whiteSpace: 'nowrap' }}>
+            <Text
+              strong
+              style={{ color: "#e8d5b0", fontSize: 14, whiteSpace: "nowrap" }}
+            >
               AI 穿搭视频
             </Text>
           )}
@@ -91,17 +103,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={({ key }) => router.push(key)}
-          style={{ borderRight: 0 }}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 220, transition: 'margin-left 0.2s' }}>
-        <Header className="flex items-center justify-between border-b border-[var(--color-border)] bg-white px-6" style={{ height: 56, padding: '0 24px' }}>
+      <Layout>
+        <Header
+          className="flex items-center justify-between border-b border-border bg-white! px-6"
+          style={{ height: 56, padding: "0 24px" }}
+        >
           <Breadcrumb items={breadcrumbItems} />
           <Dropdown menu={{ items: userMenu }} placement="bottomRight">
             <Avatar
               size={32}
               icon={<UserOutlined />}
-              style={{ backgroundColor: '#1a1a2e', cursor: 'pointer' }}
+              style={{ backgroundColor: "#1a1a2e", cursor: "pointer" }}
             />
           </Dropdown>
         </Header>

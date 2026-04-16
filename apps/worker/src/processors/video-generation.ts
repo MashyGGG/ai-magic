@@ -1,15 +1,18 @@
-import { Job, Queue } from 'bullmq';
-import Redis from 'ioredis';
-import { prisma } from '@ai-magic/db';
-import { getProvider } from '@ai-magic/providers';
-import { buildVideoPrompt } from '@ai-magic/prompts';
-import { storage } from '../lib/storage';
-import { publishJobStatus } from '../lib/publish';
+import { Job, Queue } from "bullmq";
+import Redis from "ioredis";
+import { prisma } from "@ai-magic/db";
+import { getProvider } from "@ai-magic/providers";
+import { buildVideoPrompt } from "@ai-magic/prompts";
+import { storage } from "../lib/storage";
+import { publishJobStatus } from "../lib/publish";
 
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
-const pollingQueue = new Queue('task-polling', { connection });
+const connection = new Redis(
+  process.env.REDIS_URL || "redis://localhost:6379",
+  {
+    maxRetriesPerRequest: null,
+  },
+);
+const pollingQueue = new Queue("task-polling", { connection });
 
 interface VideoJobData {
   generationJobId: string;
@@ -27,13 +30,13 @@ export async function processVideoGeneration(job: Job<VideoJobData>) {
   });
 
   if (!genJob) throw new Error(`Job ${generationJobId} not found`);
-  if (!genJob.inputAsset?.storageKey) throw new Error('No input frame asset');
+  if (!genJob.inputAsset?.storageKey) throw new Error("No input frame asset");
 
   await prisma.generationJob.update({
     where: { id: generationJobId },
-    data: { status: 'RUNNING', startedAt: new Date() },
+    data: { status: "RUNNING", startedAt: new Date() },
   });
-  await publishJobStatus(generationJobId, 'RUNNING');
+  await publishJobStatus(generationJobId, "RUNNING");
 
   try {
     const provider = getProvider(genJob.provider);
@@ -51,7 +54,7 @@ export async function processVideoGeneration(job: Job<VideoJobData>) {
       prompt: promptResult.text,
       inputImageUrl: imageUrl,
       durationSec: genJob.durationSec || genJob.outfit.durationSec || 6,
-      resolution: genJob.resolution || genJob.outfit.resolution || '768p',
+      resolution: genJob.resolution || genJob.outfit.resolution || "768p",
     });
 
     await prisma.generationJob.update({
@@ -63,23 +66,29 @@ export async function processVideoGeneration(job: Job<VideoJobData>) {
       },
     });
 
-    await pollingQueue.add('poll', {
-      generationJobId,
-      providerTaskId: result.taskId,
-      provider: genJob.provider,
-      attempt: 0,
-    }, {
-      delay: 5000,
-    });
+    await pollingQueue.add(
+      "poll",
+      {
+        generationJobId,
+        providerTaskId: result.taskId,
+        provider: genJob.provider,
+        attempt: 0,
+      },
+      {
+        delay: 5000,
+      },
+    );
 
-    await publishJobStatus(generationJobId, 'RUNNING', { message: 'Video task submitted, polling started' });
+    await publishJobStatus(generationJobId, "RUNNING", {
+      message: "Video task submitted, polling started",
+    });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
+    const msg = error instanceof Error ? error.message : "Unknown error";
     await prisma.generationJob.update({
       where: { id: generationJobId },
-      data: { status: 'FAILED', errorMessage: msg, finishedAt: new Date() },
+      data: { status: "FAILED", errorMessage: msg, finishedAt: new Date() },
     });
-    await publishJobStatus(generationJobId, 'FAILED', { error: msg });
+    await publishJobStatus(generationJobId, "FAILED", { error: msg });
     throw error;
   }
 }

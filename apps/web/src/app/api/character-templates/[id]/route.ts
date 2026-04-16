@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { prisma } from '@ai-magic/db';
-import { ok, fail } from '@ai-magic/shared';
-import { requireUser, handleApiError } from '@/lib/api-utils';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@ai-magic/db";
+import { ok, fail } from "@ai-magic/shared";
+import { requireUser, handleApiError } from "@/lib/api-utils";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -31,13 +31,21 @@ export async function GET(
     const template = await prisma.characterTemplate.findUnique({
       where: { id },
       include: {
-        referenceAsset: { select: { id: true, storageKey: true, mimeType: true } },
-        outfits: { select: { id: true, title: true, status: true, createdAt: true }, take: 10, orderBy: { createdAt: 'desc' } },
+        referenceAsset: {
+          select: { id: true, storageKey: true, mimeType: true },
+        },
+        outfits: {
+          select: { id: true, title: true, status: true, createdAt: true },
+          take: 10,
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
     if (!template) {
-      return NextResponse.json(fail('NOT_FOUND', '模板不存在'), { status: 404 });
+      return NextResponse.json(fail("NOT_FOUND", "模板不存在"), {
+        status: 404,
+      });
     }
 
     return NextResponse.json(ok(template));
@@ -56,7 +64,10 @@ export async function PATCH(
     const body = await req.json();
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(fail('INVALID_INPUT', parsed.error.issues[0].message), { status: 400 });
+      return NextResponse.json(
+        fail("INVALID_INPUT", parsed.error.issues[0].message),
+        { status: 400 },
+      );
     }
 
     const template = await prisma.characterTemplate.update({
@@ -84,7 +95,10 @@ export async function DELETE(
 
     if (outfitCount > 0) {
       return NextResponse.json(
-        fail('TEMPLATE_IN_USE', `该模板被 ${outfitCount} 个穿搭任务引用，无法删除`),
+        fail(
+          "TEMPLATE_IN_USE",
+          `该模板被 ${outfitCount} 个穿搭任务引用，无法删除`,
+        ),
         { status: 409 },
       );
     }

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { Card, Form, Input, Button, Typography, App } from 'antd';
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { Card, Form, Input, Button, Typography, App } from "antd";
+import { LockOutlined, MailOutlined } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 const { Title, Text } = Typography;
 
@@ -15,19 +15,19 @@ export default function LoginPage() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
       const data = await res.json();
       if (data.success) {
-        router.push('/app/dashboard');
+        router.push("/app/dashboard");
       } else {
-        message.error(data.error?.message || '登录失败');
+        message.error(data.error?.message || "登录失败");
       }
     } catch {
-      message.error('网络错误，请重试');
+      message.error("网络错误，请重试");
     } finally {
       setLoading(false);
     }
@@ -35,13 +35,16 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg)]">
-      <Card className="w-full max-w-sm shadow-lg" styles={{ body: { padding: 32 } }}>
+      <Card
+        className="w-full max-w-sm shadow-lg"
+        styles={{ body: { padding: 32 } }}
+      >
         <div className="mb-6 text-center">
           <div
             className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl"
-            style={{ backgroundColor: '#1a1a2e' }}
+            style={{ backgroundColor: "#1a1a2e" }}
           >
-            <span className="text-lg font-bold" style={{ color: '#c9a96e' }}>
+            <span className="text-lg font-bold" style={{ color: "#c9a96e" }}>
               AI
             </span>
           </div>
@@ -55,8 +58,8 @@ export default function LoginPage() {
           <Form.Item
             name="email"
             rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '邮箱格式不正确' },
+              { required: true, message: "请输入邮箱" },
+              { type: "email", message: "邮箱格式不正确" },
             ]}
           >
             <Input prefix={<MailOutlined />} placeholder="邮箱" size="large" />
@@ -64,13 +67,23 @@ export default function LoginPage() {
 
           <Form.Item
             name="password"
-            rules={[{ required: true, message: '请输入密码' }]}
+            rules={[{ required: true, message: "请输入密码" }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="密码" size="large" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="密码"
+              size="large"
+            />
           </Form.Item>
 
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              size="large"
+              loading={loading}
+            >
               登录
             </Button>
           </Form.Item>

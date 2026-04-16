@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import { prisma } from '@ai-magic/db';
-import { ok, paginated, fail } from '@ai-magic/shared';
-import { paginationSchema } from '@ai-magic/shared';
-import { requireUser, handleApiError } from '@/lib/api-utils';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@ai-magic/db";
+import { ok, paginated, fail } from "@ai-magic/shared";
+import { paginationSchema } from "@ai-magic/shared";
+import { requireUser, handleApiError } from "@/lib/api-utils";
 
 const createSchema = z.object({
   assetId: z.string().optional(),
   outfitId: z.string().optional(),
-  status: z.enum(['APPROVED', 'REJECTED', 'ARCHIVED']),
+  status: z.enum(["APPROVED", "REJECTED", "ARCHIVED"]),
   comment: z.string().optional(),
 });
 
@@ -17,18 +17,25 @@ export async function GET(req: NextRequest) {
     await requireUser();
     const url = new URL(req.url);
     const { page, pageSize } = paginationSchema.parse({
-      page: url.searchParams.get('page'),
-      pageSize: url.searchParams.get('pageSize'),
+      page: url.searchParams.get("page"),
+      pageSize: url.searchParams.get("pageSize"),
     });
 
     const [items, total] = await Promise.all([
       prisma.reviewRecord.findMany({
         include: {
-          asset: { select: { id: true, type: true, storageKey: true, reviewStatus: true } },
+          asset: {
+            select: {
+              id: true,
+              type: true,
+              storageKey: true,
+              reviewStatus: true,
+            },
+          },
           outfit: { select: { id: true, title: true } },
           reviewer: { select: { id: true, name: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -47,7 +54,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(fail('INVALID_INPUT', parsed.error.issues[0].message), { status: 400 });
+      return NextResponse.json(
+        fail("INVALID_INPUT", parsed.error.issues[0].message),
+        { status: 400 },
+      );
     }
 
     const { assetId, outfitId, status, comment } = parsed.data;

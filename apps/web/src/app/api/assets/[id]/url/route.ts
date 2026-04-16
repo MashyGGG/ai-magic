@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@ai-magic/db';
-import { storage } from '@/lib/storage';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@ai-magic/db";
+import { storage } from "@/lib/storage";
 
 export async function GET(
   _req: NextRequest,
@@ -14,12 +14,12 @@ export async function GET(
     });
 
     if (!asset?.storageKey) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const url = await storage.getSignedUrl(asset.storageKey, 3600);
     return NextResponse.redirect(url);
   } catch {
-    return NextResponse.json({ error: 'Failed to get URL' }, { status: 500 });
+    return NextResponse.json({ error: "Failed to get URL" }, { status: 500 });
   }
 }

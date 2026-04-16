@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Button, Result } from 'antd';
+import { Button, Result } from "antd";
 
 export default function GlobalError({
   error,
@@ -14,7 +14,7 @@ export default function GlobalError({
       <Result
         status="500"
         title="出错了"
-        subTitle={error.message || '服务器遇到了问题，请稍后重试'}
+        subTitle={error.message || "服务器遇到了问题，请稍后重试"}
         extra={
           <Button type="primary" onClick={reset}>
             重试
