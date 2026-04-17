@@ -22,7 +22,12 @@
   --color-border: var(--color-border);
 }
 
+html {
+  min-height: 100dvh;
+}
+
 body {
+  min-height: 100dvh;
   background: var(--color-bg);
   color: var(--color-text);
 }

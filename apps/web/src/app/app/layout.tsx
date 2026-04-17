@@ -76,16 +76,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       : []),
   ];
 
+  const siderWidth = collapsed ? 80 : 220;
+
   return (
-    <Layout className="h-full">
+    <Layout className="min-h-dvh">
       <Sider
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
         width={220}
+        collapsedWidth={80}
         theme="dark"
-        className="fixed left-0 top-0 bottom-0 z-10"
-        style={{ overflow: "auto" }}
+        style={{
+          overflow: "auto",
+          height: "100vh",
+          position: "fixed",
+          insetInlineStart: 0,
+          top: 0,
+          zIndex: 10,
+        }}
       >
         <div className="flex h-14 items-center justify-center gap-2 border-b border-white/10">
           <div
@@ -111,9 +120,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onClick={({ key }) => router.push(key)}
         />
       </Sider>
-      <Layout>
+      <Layout
+        className="flex min-h-dvh flex-1 flex-col"
+        style={{ marginInlineStart: siderWidth, backgroundColor: "var(--color-bg)" }}
+      >
         <Header
-          className="flex items-center justify-between border-b border-border bg-white! px-6"
+          className="flex shrink-0 items-center justify-between border-b border-border bg-white! px-6"
           style={{ height: 56, padding: "0 24px" }}
         >
           <Breadcrumb items={breadcrumbItems} />
@@ -132,7 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Dropdown>
         </Header>
-        <Content className="p-6">{children}</Content>
+        <Content className="min-h-0 flex-1 p-6">{children}</Content>
       </Layout>
     </Layout>
   );

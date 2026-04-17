@@ -14,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className="h-full">
-      <body className="h-full">
+    <html lang="zh-CN" className="min-h-dvh">
+      <body className="min-h-dvh antialiased">
         <AntdRegistry>
           <Providers>{children}</Providers>
         </AntdRegistry>
