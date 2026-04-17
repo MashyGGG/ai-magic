@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const costs = await prisma.costLedger.findMany({ where });
 
     const totalAmount = costs.reduce(
-      (s: number, c: { amount: string }) => s + Number(c.amount),
+      (s, c) => s + Number(c.amount),
       0,
     );
 

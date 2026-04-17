@@ -21,6 +21,7 @@ import {
   PictureOutlined,
   PlayCircleOutlined,
 } from "@ant-design/icons";
+import api from "@/lib/axios";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -50,39 +51,27 @@ export default function ReviewsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["review-assets", page],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: "20",
         reviewStatus: "GENERATED",
       });
-      const r = await fetch(`/api/assets?${params}`);
-      return r.json();
+      return api.get(`/api/assets?${params}`).then((r) => r.data);
     },
   });
 
   const reviewMut = useMutation({
-    mutationFn: async ({
-      assetId,
-      status,
-    }: {
-      assetId: string;
-      status: string;
-    }) => {
-      const r = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assetId, status, comment }),
-      });
-      return r.json();
+    mutationFn: ({ assetId, status }: { assetId: string; status: string }) =>
+      api.post("/api/reviews", { assetId, status, comment }).then((r) => r.data),
+    onSuccess: () => {
+      message.success("审核完成");
+      setComment("");
+      setPreviewAsset(null);
+      queryClient.invalidateQueries({ queryKey: ["review-assets"] });
     },
-    onSuccess: (r) => {
-      if (r.success) {
-        message.success("审核完成");
-        setComment("");
-        setPreviewAsset(null);
-        queryClient.invalidateQueries({ queryKey: ["review-assets"] });
-      } else message.error(r.error?.message);
+    onError: (err) => {
+      message.error(err instanceof Error ? err.message : "审核失败");
     },
   });
 

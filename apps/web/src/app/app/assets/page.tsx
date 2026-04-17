@@ -20,6 +20,7 @@ import {
   PictureOutlined,
   DownloadOutlined,
 } from "@ant-design/icons";
+import api from "@/lib/axios";
 
 const { Title, Text } = Typography;
 
@@ -58,24 +59,20 @@ export default function AssetsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["assets", page, typeFilter, statusFilter],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: "20",
       });
       if (typeFilter) params.set("type", typeFilter);
       if (statusFilter) params.set("reviewStatus", statusFilter);
-      const res = await fetch(`/api/assets?${params}`);
-      return res.json();
+      return api.get(`/api/assets?${params}`).then((r) => r.data);
     },
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
     queryKey: ["asset-detail", selectedAsset],
-    queryFn: async () => {
-      const res = await fetch(`/api/assets/${selectedAsset}`);
-      return res.json();
-    },
+    queryFn: () => api.get(`/api/assets/${selectedAsset}`).then((r) => r.data),
     enabled: !!selectedAsset,
   });
 
@@ -223,47 +220,56 @@ export default function AssetsPage() {
               />
             )}
 
-            <Descriptions column={1} size="small" bordered>
-              <Descriptions.Item label="类型">
-                {detailData.data.type}
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusColors[detailData.data.reviewStatus]}>
-                  {detailData.data.reviewStatus}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="Provider">
-                {detailData.data.provider || "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="文件大小">
-                {detailData.data.fileSize
-                  ? `${(detailData.data.fileSize / 1024).toFixed(1)} KB`
-                  : "-"}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {new Date(detailData.data.createdAt).toLocaleString("zh-CN")}
-              </Descriptions.Item>
-            </Descriptions>
+            <Descriptions
+              column={1}
+              size="small"
+              bordered
+              items={[
+                { label: "类型", children: detailData.data.type },
+                {
+                  label: "状态",
+                  children: (
+                    <Tag color={statusColors[detailData.data.reviewStatus]}>
+                      {detailData.data.reviewStatus}
+                    </Tag>
+                  ),
+                },
+                { label: "Provider", children: detailData.data.provider || "-" },
+                {
+                  label: "文件大小",
+                  children: detailData.data.fileSize
+                    ? `${(detailData.data.fileSize / 1024).toFixed(1)} KB`
+                    : "-",
+                },
+                {
+                  label: "创建时间",
+                  children: new Date(detailData.data.createdAt).toLocaleString("zh-CN"),
+                },
+              ]}
+            />
 
             {detailData.data.jobOutputRefs?.[0] && (
               <Card title="来源任务" size="small">
-                <Descriptions column={1} size="small">
-                  <Descriptions.Item label="模型">
-                    {detailData.data.jobOutputRefs[0].model}
-                  </Descriptions.Item>
-                  {detailData.data.jobOutputRefs[0].seed && (
-                    <Descriptions.Item label="Seed">
-                      {detailData.data.jobOutputRefs[0].seed}
-                    </Descriptions.Item>
-                  )}
-                  {detailData.data.jobOutputRefs[0].promptText && (
-                    <Descriptions.Item label="Prompt">
-                      <div className="max-h-32 overflow-auto text-xs">
-                        {detailData.data.jobOutputRefs[0].promptText}
-                      </div>
-                    </Descriptions.Item>
-                  )}
-                </Descriptions>
+                <Descriptions
+                  column={1}
+                  size="small"
+                  items={[
+                    { label: "模型", children: detailData.data.jobOutputRefs[0].model },
+                    detailData.data.jobOutputRefs[0].seed
+                      ? { label: "Seed", children: detailData.data.jobOutputRefs[0].seed }
+                      : null,
+                    detailData.data.jobOutputRefs[0].promptText
+                      ? {
+                          label: "Prompt",
+                          children: (
+                            <div className="max-h-32 overflow-auto text-xs">
+                              {detailData.data.jobOutputRefs[0].promptText}
+                            </div>
+                          ),
+                        }
+                      : null,
+                  ].filter(Boolean) as { label: string; children: React.ReactNode }[]}
+                />
               </Card>
             )}
 

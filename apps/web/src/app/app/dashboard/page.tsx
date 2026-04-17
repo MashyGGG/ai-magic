@@ -23,6 +23,7 @@ import {
   AuditOutlined,
 } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
+import api from "@/lib/axios";
 
 const { Title, Text } = Typography;
 
@@ -40,10 +41,7 @@ export default function DashboardPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
-    queryFn: async () => {
-      const r = await fetch("/api/dashboard/summary");
-      return r.json();
-    },
+    queryFn: () => api.get("/api/dashboard/summary").then((r) => r.data),
     refetchInterval: 30000,
   });
 

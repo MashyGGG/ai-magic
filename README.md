@@ -22,13 +22,16 @@ ai-magic/
 
 | 层级 | 技术 |
 |------|------|
-| 前端 | Next.js 16, React 19, Ant Design 5, Tailwind CSS 4, React Query 5, Zustand |
+| 前端 | Next.js 16, React 19, Ant Design 6, Tailwind CSS 4, React Query 5 |
+| 状态管理 | Zustand 5 (auth store) |
+| HTTP 客户端 | Axios (统一拦截器 + 错误处理) |
 | BFF | Next.js Route Handlers |
 | 认证 | 自定义 JWT + HttpOnly Cookie (jose + bcrypt) |
 | 数据库 | PostgreSQL 16 (Prisma ORM) |
 | 队列 | BullMQ + Redis |
 | 存储 | S3 兼容 (MinIO 开发 / 云上 OSS/R2) |
 | AI | MiniMax (image-01 + Hailuo 2.3-Fast)；Runway skeleton 预留 |
+| 代码质量 | ESLint 9 (eslint-config-next + prettier), Prettier 3 |
 
 ## 快速启动
 
@@ -73,6 +76,61 @@ pnpm dev:worker
 | admin@example.com | admin123 | ADMIN |
 | editor@example.com | editor123 | EDITOR |
 | reviewer@example.com | reviewer123 | REVIEWER |
+
+## 开发工具
+
+### 代码格式化 (Prettier)
+
+```bash
+pnpm format          # 格式化所有文件
+pnpm format:check    # 检查格式是否一致 (CI 用)
+```
+
+配置文件: [.prettierrc](.prettierrc) — `singleQuote`, `trailingComma: all`, `printWidth: 100`
+
+### 代码检查 (ESLint)
+
+```bash
+pnpm lint            # 运行 ESLint (apps/web)
+```
+
+ESLint 已集成 `eslint-config-prettier`，避免与 Prettier 规则冲突。
+
+### 编辑器
+
+项目包含 `.vscode/settings.json`，已配置保存时自动格式化 + Prettier 为默认 Formatter。
+
+## API 客户端 (Axios)
+
+前端所有 API 调用使用统一的 Axios 实例 (`apps/web/src/lib/axios.ts`)：
+
+- **自动携带 Cookie**: `withCredentials: true`
+- **响应拦截器**: 解包 `ApiResponse`，非 `success` 时自动 reject 为 `Error`
+- **401 自动跳转**: 收到 401 时清空 auth store 并重定向到登录页
+- **简化调用**: 搭配 React Query，每个 queryFn/mutationFn 只需一行
+
+```typescript
+// 示例: useQuery 中使用
+queryFn: () => api.get('/api/outfits').then(r => r.data)
+
+// 示例: useMutation 中使用
+mutationFn: (data) => api.post('/api/outfits', data).then(r => r.data)
+```
+
+## 状态管理 (Zustand)
+
+Auth Store (`apps/web/src/store/use-auth-store.ts`) 管理用户认证状态：
+
+| Action | 说明 |
+|--------|------|
+| `fetchUser()` | 调用 `/api/auth/me` 加载用户信息 |
+| `setUser(user)` | 直接设置用户对象 |
+| `clearUser()` | 清空用户状态 |
+| `logout()` | 调用登出 API + 清空状态 |
+
+- 登录成功后自动调用 `fetchUser()` 写入 store
+- App Layout 组件挂载时从 store 读取并展示用户名/角色
+- 侧边栏 Header 显示当前登录用户信息
 
 ## 环境变量
 
@@ -146,21 +204,25 @@ interface AiProvider {
 
 | # | 功能 | 状态 |
 |---|------|------|
-| 1 | 登录/角色系统 | ✅ |
-| 2 | 角色模板 CRUD + 参考图 | ✅ |
-| 3 | 穿搭任务 CRUD + Prompt 预览 + 成本预估 | ✅ |
-| 4 | MiniMax 图片/视频 Provider | ✅ |
-| 5 | BullMQ 异步队列 (图/视频/轮询/下载) | ✅ |
-| 6 | 选帧 + 视频生成触发 | ✅ |
-| 7 | 资产库 (筛选/网格/详情) | ✅ |
-| 8 | 审核流 | ✅ |
-| 9 | 成本统计 | ✅ |
-| 10 | Dashboard 首页 | ✅ |
-| 11 | 系统设置 | ✅ |
-| 12 | SSE 实时任务状态推送 | ✅ |
-| 13 | 日预算控制 | ✅ |
-| 14 | Runway skeleton | ✅ |
-| 15 | 错误边界 / 空状态 | ✅ |
+| 1 | 登录/角色系统 | done |
+| 2 | 角色模板 CRUD + 参考图 | done |
+| 3 | 穿搭任务 CRUD + Prompt 预览 + 成本预估 | done |
+| 4 | MiniMax 图片/视频 Provider | done |
+| 5 | BullMQ 异步队列 (图/视频/轮询/下载) | done |
+| 6 | 选帧 + 视频生成触发 | done |
+| 7 | 资产库 (筛选/网格/详情) | done |
+| 8 | 审核流 | done |
+| 9 | 成本统计 | done |
+| 10 | Dashboard 首页 | done |
+| 11 | 系统设置 | done |
+| 12 | SSE 实时任务状态推送 | done |
+| 13 | 日预算控制 | done |
+| 14 | Runway skeleton | done |
+| 15 | 错误边界 / 空状态 | done |
+| 16 | Axios 统一 HTTP 客户端 + 拦截器 | done |
+| 17 | Zustand Auth Store (登录态管理) | done |
+| 18 | ESLint + Prettier 代码质量工具链 | done |
+| 19 | Ant Design v5 -> v6 兼容升级 | done |
 
 ## 后续待办 (第二阶段)
 
@@ -173,3 +235,4 @@ interface AiProvider {
 - 权限细化 (RBAC)
 - Sentry 错误监控
 - CI/CD 流水线
+- Vercel 部署

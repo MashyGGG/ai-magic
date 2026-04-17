@@ -18,7 +18,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider theme={antdTheme} locale={zhCN}>
+      <ConfigProvider
+        theme={antdTheme}
+        locale={zhCN}
+        tag={{ styles: { root: { marginInlineEnd: 8 } } }}
+      >
         <AntdApp>{children}</AntdApp>
       </ConfigProvider>
     </QueryClientProvider>

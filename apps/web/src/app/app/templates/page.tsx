@@ -24,6 +24,7 @@ import {
   EyeOutlined,
 } from "@ant-design/icons";
 import dynamic from "next/dynamic";
+import api from "@/lib/axios";
 
 const TemplateFormDrawer = dynamic<{
   open: boolean;
@@ -56,21 +57,17 @@ interface TemplateItem {
   createdAt: string;
 }
 
-async function fetchTemplates(page: number, pageSize: number, keyword: string) {
+function fetchTemplates(page: number, pageSize: number, keyword: string) {
   const params = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
   });
   if (keyword) params.set("keyword", keyword);
-  const res = await fetch(`/api/character-templates?${params}`);
-  return res.json();
+  return api.get(`/api/character-templates?${params}`).then((r) => r.data);
 }
 
-async function deleteTemplate(id: string) {
-  const res = await fetch(`/api/character-templates/${id}`, {
-    method: "DELETE",
-  });
-  return res.json();
+function deleteTemplate(id: string) {
+  return api.delete(`/api/character-templates/${id}`).then((r) => r.data);
 }
 
 export default function TemplatesPage() {
@@ -90,13 +87,12 @@ export default function TemplatesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteTemplate,
-    onSuccess: (res) => {
-      if (res.success) {
-        message.success("删除成功");
-        queryClient.invalidateQueries({ queryKey: ["templates"] });
-      } else {
-        message.error(res.error?.message || "删除失败");
-      }
+    onSuccess: () => {
+      message.success("删除成功");
+      queryClient.invalidateQueries({ queryKey: ["templates"] });
+    },
+    onError: (err) => {
+      message.error(err instanceof Error ? err.message : "删除失败");
     },
   });
 

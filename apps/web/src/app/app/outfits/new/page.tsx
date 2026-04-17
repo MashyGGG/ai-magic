@@ -21,6 +21,7 @@ import {
   SCENE_TEMPLATES,
   buildImagePrompt,
 } from "@ai-magic/prompts";
+import api from "@/lib/axios";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -41,10 +42,8 @@ export default function NewOutfitPage() {
 
   const { data: templatesData } = useQuery({
     queryKey: ["templates-select"],
-    queryFn: async () => {
-      const res = await fetch("/api/character-templates?pageSize=100");
-      return res.json();
-    },
+    queryFn: () =>
+      api.get("/api/character-templates?pageSize=100").then((r) => r.data),
   });
 
   const templates = templatesData?.data?.items || [];
@@ -97,21 +96,14 @@ export default function NewOutfitPage() {
   }, [formValues]);
 
   const createMutation = useMutation({
-    mutationFn: async (values: Record<string, unknown>) => {
-      const res = await fetch("/api/outfits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      return res.json();
-    },
+    mutationFn: (values: Record<string, unknown>) =>
+      api.post("/api/outfits", values).then((r) => r.data),
     onSuccess: (res) => {
-      if (res.success) {
-        message.success("任务创建成功");
-        router.push(`/app/outfits/${res.data.id}`);
-      } else {
-        message.error(res.error?.message || "创建失败");
-      }
+      message.success("任务创建成功");
+      router.push(`/app/outfits/${res.data.id}`);
+    },
+    onError: (err) => {
+      message.error(err instanceof Error ? err.message : "创建失败");
     },
   });
 

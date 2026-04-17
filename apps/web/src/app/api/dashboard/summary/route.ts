@@ -39,7 +39,7 @@ export async function GET() {
     ]);
 
     const todayCostTotal = todayCosts.reduce(
-      (s: number, c: { amount: string }) => s + Number(c.amount),
+      (s, c) => s + Number(c.amount),
       0,
     );
 

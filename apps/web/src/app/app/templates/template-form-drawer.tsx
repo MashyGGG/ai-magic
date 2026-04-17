@@ -9,6 +9,7 @@ import {
   MOTION_TEMPLATES,
   SCENE_TEMPLATES,
 } from "@ai-magic/prompts";
+import api from "@/lib/axios";
 
 interface Props {
   open: boolean;
@@ -28,12 +29,10 @@ export function TemplateFormDrawer({
 
   const { data: editData } = useQuery({
     queryKey: ["template", editId],
-    queryFn: async () => {
-      if (!editId) return null;
-      const res = await fetch(`/api/character-templates/${editId}`);
-      const json = await res.json();
-      return json.data;
-    },
+    queryFn: () =>
+      editId
+        ? api.get(`/api/character-templates/${editId}`).then((r) => r.data.data)
+        : null,
     enabled: !!editId && open,
   });
 
@@ -46,37 +45,32 @@ export function TemplateFormDrawer({
   }, [editData, form, open]);
 
   const saveMutation = useMutation({
-    mutationFn: async (values: Record<string, unknown>) => {
+    mutationFn: (values: Record<string, unknown>) => {
       const url = editId
         ? `/api/character-templates/${editId}`
         : "/api/character-templates";
-      const method = editId ? "PATCH" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      return res.json();
+      const req = editId ? api.patch(url, values) : api.post(url, values);
+      return req.then((r) => r.data);
     },
-    onSuccess: (res) => {
-      if (res.success) {
-        message.success(editId ? "更新成功" : "创建成功");
-        onSuccess();
-      } else {
-        message.error(res.error?.message || "操作失败");
-      }
+    onSuccess: () => {
+      message.success(editId ? "更新成功" : "创建成功");
+      onSuccess();
+    },
+    onError: (err) => {
+      message.error(err instanceof Error ? err.message : "操作失败");
     },
   });
 
   const handleUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const json = await res.json();
-    if (json.success) {
-      form.setFieldValue("referenceAssetId", json.data.assetId);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post("/api/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      form.setFieldValue("referenceAssetId", res.data.data.assetId);
       message.success("参考图上传成功");
-    } else {
+    } catch {
       message.error("上传失败");
     }
     return false;

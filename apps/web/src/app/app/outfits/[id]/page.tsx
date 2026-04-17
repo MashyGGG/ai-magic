@@ -15,8 +15,6 @@ import {
   Col,
   Button,
   App,
-  Modal,
-  Popconfirm,
 } from "antd";
 import {
   ClockCircleOutlined,
@@ -27,6 +25,7 @@ import {
   StarFilled,
   StarOutlined,
 } from "@ant-design/icons";
+import api from "@/lib/axios";
 
 const { Title, Text } = Typography;
 
@@ -79,43 +78,34 @@ export default function OutfitDetailPage({
 
   const { data, isLoading } = useQuery({
     queryKey: ["outfit", id],
-    queryFn: async () => {
-      const r = await fetch(`/api/outfits/${id}`);
-      return r.json();
-    },
+    queryFn: () => api.get(`/api/outfits/${id}`).then((r) => r.data),
     refetchInterval: 5000,
   });
 
   const genImagesMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: () => {
       const outfit = data?.data;
-      const r = await fetch("/api/generations/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      return api
+        .post("/api/generations/image", {
           outfitId: id,
           provider: outfit?.providerPreference || "MINIMAX",
           model: outfit?.imageModel || "image-01",
           count: outfit?.imageCount || 4,
-        }),
-      });
-      return r.json();
+        })
+        .then((r) => r.data);
     },
     onSuccess: (r) => {
-      if (r.success) {
-        message.success(`已提交 ${r.data.jobIds.length} 个首帧生成任务`);
-        queryClient.invalidateQueries({ queryKey: ["outfit", id] });
-      } else message.error(r.error?.message || "提交失败");
+      message.success(`已提交 ${r.data.jobIds.length} 个首帧生成任务`);
+      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
     },
+    onError: (err) => message.error(err instanceof Error ? err.message : "提交失败"),
   });
 
   const genVideoMut = useMutation({
-    mutationFn: async (inputAssetId: string) => {
+    mutationFn: (inputAssetId: string) => {
       const outfit = data?.data;
-      const r = await fetch("/api/generations/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      return api
+        .post("/api/generations/video", {
           outfitId: id,
           inputAssetId,
           provider: outfit?.providerPreference || "MINIMAX",
@@ -123,56 +113,34 @@ export default function OutfitDetailPage({
           count: outfit?.videoCount || 2,
           durationSec: outfit?.durationSec || 6,
           resolution: outfit?.resolution || "768p",
-        }),
-      });
-      return r.json();
+        })
+        .then((r) => r.data);
     },
     onSuccess: (r) => {
-      if (r.success) {
-        message.success(`已提交 ${r.data.jobIds.length} 个视频生成任务`);
-        queryClient.invalidateQueries({ queryKey: ["outfit", id] });
-      } else message.error(r.error?.message || "提交失败");
+      message.success(`已提交 ${r.data.jobIds.length} 个视频生成任务`);
+      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
     },
+    onError: (err) => message.error(err instanceof Error ? err.message : "提交失败"),
   });
 
   const selectFrameMut = useMutation({
-    mutationFn: async ({
-      assetId,
-      selected,
-    }: {
-      assetId: string;
-      selected: boolean;
-    }) => {
-      const r = await fetch(`/api/assets/${assetId}/select-frame`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outfitId: id, selected }),
-      });
-      return r.json();
+    mutationFn: ({ assetId, selected }: { assetId: string; selected: boolean }) =>
+      api.post(`/api/assets/${assetId}/select-frame`, { outfitId: id, selected }).then((r) => r.data),
+    onSuccess: () => {
+      message.success("已更新选帧");
+      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
     },
-    onSuccess: (r) => {
-      if (r.success) {
-        message.success("已更新选帧");
-        queryClient.invalidateQueries({ queryKey: ["outfit", id] });
-      } else message.error(r.error?.message);
-    },
+    onError: (err) => message.error(err instanceof Error ? err.message : "操作失败"),
   });
 
   const retryMut = useMutation({
-    mutationFn: async (jobId: string) => {
-      const r = await fetch(`/api/jobs/${jobId}/retry`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-      });
-      return r.json();
+    mutationFn: (jobId: string) =>
+      api.post(`/api/jobs/${jobId}/retry`, {}).then((r) => r.data),
+    onSuccess: () => {
+      message.success("已重新排队");
+      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
     },
-    onSuccess: (r) => {
-      if (r.success) {
-        message.success("已重新排队");
-        queryClient.invalidateQueries({ queryKey: ["outfit", id] });
-      } else message.error(r.error?.message);
-    },
+    onError: (err) => message.error(err instanceof Error ? err.message : "重试失败"),
   });
 
   if (isLoading) return <Skeleton active />;
@@ -223,7 +191,7 @@ export default function OutfitDetailPage({
               value={outfit.totalCost}
               precision={2}
               prefix="¥"
-              valueStyle={{ color: "#c9a96e" }}
+              styles={{ content: { color: "#c9a96e" } }}
             />
           </Card>
         </Col>
@@ -250,33 +218,25 @@ export default function OutfitDetailPage({
             <Statistic
               title="模板"
               value={outfit.characterTemplate?.name || "-"}
-              valueStyle={{ fontSize: 14 }}
+              styles={{ content: { fontSize: 14 } }}
             />
           </Card>
         </Col>
       </Row>
 
       <Card title="基础信息" size="small">
-        <Descriptions column={2} size="small">
-          <Descriptions.Item label="Provider">
-            <Tag>{outfit.providerPreference}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="图片模型">
-            {outfit.imageModel}
-          </Descriptions.Item>
-          <Descriptions.Item label="视频模型">
-            {outfit.videoModel}
-          </Descriptions.Item>
-          <Descriptions.Item label="分辨率">
-            {outfit.resolution}
-          </Descriptions.Item>
-          <Descriptions.Item label="时长">
-            {outfit.durationSec}s
-          </Descriptions.Item>
-          <Descriptions.Item label="比例">
-            {outfit.aspectRatio}
-          </Descriptions.Item>
-        </Descriptions>
+        <Descriptions
+          column={2}
+          size="small"
+          items={[
+            { label: "Provider", children: <Tag>{outfit.providerPreference}</Tag> },
+            { label: "图片模型", children: outfit.imageModel },
+            { label: "视频模型", children: outfit.videoModel },
+            { label: "分辨率", children: outfit.resolution },
+            { label: "时长", children: `${outfit.durationSec}s` },
+            { label: "比例", children: outfit.aspectRatio },
+          ]}
+        />
       </Card>
 
       <Card title="首帧候选" size="small">

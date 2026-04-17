@@ -12,9 +12,9 @@ import {
   Button,
   App,
   Skeleton,
-  Divider,
 } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
+import api from "@/lib/axios";
 
 const { Title } = Typography;
 
@@ -25,10 +25,7 @@ export default function SettingsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["settings"],
-    queryFn: async () => {
-      const r = await fetch("/api/settings");
-      return r.json();
-    },
+    queryFn: () => api.get("/api/settings").then((r) => r.data),
   });
 
   useEffect(() => {
@@ -54,21 +51,14 @@ export default function SettingsPage() {
       const cleaned = { ...values };
       if (cleaned.minimaxApiKey === "••••••••") delete cleaned.minimaxApiKey;
       if (cleaned.runwayApiKey === "••••••••") delete cleaned.runwayApiKey;
-
-      const r = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cleaned),
-      });
-      return r.json();
+      return api.patch("/api/settings", cleaned).then((r) => r.data);
     },
-    onSuccess: (r) => {
-      if (r.success) {
-        message.success("设置已保存");
-        queryClient.invalidateQueries({ queryKey: ["settings"] });
-      } else {
-        message.error(r.error?.message || "保存失败");
-      }
+    onSuccess: () => {
+      message.success("设置已保存");
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (err) => {
+      message.error(err instanceof Error ? err.message : "保存失败");
     },
   });
 

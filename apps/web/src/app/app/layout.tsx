@@ -13,8 +13,9 @@ import {
   LogoutOutlined,
 } from "@ant-design/icons";
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MenuProps } from "antd";
+import { useAuthStore } from "@/store/use-auth-store";
 
 const { Sider, Content, Header } = Layout;
 const { Text } = Typography;
@@ -44,13 +45,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { user, fetchUser, logout } = useAuthStore();
+
+  useEffect(() => {
+    if (!user) fetchUser();
+  }, [user, fetchUser]);
 
   const selectedKey =
     Object.keys(breadcrumbMap).find((k) => pathname.startsWith(k)) ||
     "/app/dashboard";
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await logout();
     router.push("/login");
   };
 
@@ -112,11 +118,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           <Breadcrumb items={breadcrumbItems} />
           <Dropdown menu={{ items: userMenu }} placement="bottomRight">
-            <Avatar
-              size={32}
-              icon={<UserOutlined />}
-              style={{ backgroundColor: "#1a1a2e", cursor: "pointer" }}
-            />
+            <div style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+              <Avatar
+                size={32}
+                icon={<UserOutlined />}
+                style={{ backgroundColor: "#1a1a2e" }}
+              />
+              {user && (
+                <Text style={{ fontSize: 13 }}>
+                  {user.name || user.email}
+                </Text>
+              )}
+            </div>
           </Dropdown>
         </Header>
         <Content className="p-6">{children}</Content>

@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Typography, Button, Table, Tag, Input, Space } from "antd";
 import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import api from "@/lib/axios";
 
 const { Title } = Typography;
 
@@ -36,18 +37,17 @@ export default function OutfitsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["outfits", page, keyword],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: "20",
       });
       if (keyword) params.set("keyword", keyword);
-      const res = await fetch(`/api/outfits?${params}`);
-      return res.json();
+      return api.get(`/api/outfits?${params}`).then((r) => r.data);
     },
   });
 
-  const columns: ColumnsType<OutfitItem> = [
+  const columns: TableColumnsType<OutfitItem> = [
     { title: "标题", dataIndex: "title", ellipsis: true },
     {
       title: "角色模板",

@@ -18,6 +18,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from "@ant-design/icons";
+import api from "@/lib/axios";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -27,14 +28,13 @@ export default function CostsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["costs-summary", dateRange],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams();
       if (dateRange) {
         params.set("from", dateRange[0]);
         params.set("to", dateRange[1]);
       }
-      const r = await fetch(`/api/costs/summary?${params}`);
-      return r.json();
+      return api.get(`/api/costs/summary?${params}`).then((r) => r.data);
     },
   });
 

@@ -70,13 +70,9 @@ export async function GET(
     }
 
     const totalCost = outfit.generationJobs.reduce(
-      (sum: number, job: { costs: { amount: string }[] }) => {
+      (sum, job) => {
         return (
-          sum +
-          job.costs.reduce(
-            (s: number, c: { amount: string }) => s + Number(c.amount),
-            0,
-          )
+          sum + job.costs.reduce((s, c) => s + Number(c.amount), 0)
         );
       },
       0,

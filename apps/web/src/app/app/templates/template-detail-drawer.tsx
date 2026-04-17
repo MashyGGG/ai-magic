@@ -10,6 +10,7 @@ import {
   Typography,
 } from "antd";
 import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/axios";
 
 const { Text } = Typography;
 
@@ -21,11 +22,8 @@ interface Props {
 export function TemplateDetailDrawer({ templateId, onClose }: Props) {
   const { data, isLoading } = useQuery({
     queryKey: ["template", templateId],
-    queryFn: async () => {
-      const res = await fetch(`/api/character-templates/${templateId}`);
-      const json = await res.json();
-      return json.data;
-    },
+    queryFn: () =>
+      api.get(`/api/character-templates/${templateId}`).then((r) => r.data.data),
     enabled: !!templateId,
   });
 
@@ -53,42 +51,25 @@ export function TemplateDetailDrawer({ templateId, onClose }: Props) {
             </div>
           )}
 
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="名称">{data.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">
-              {data.description || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="性别风格">
-              {data.genderStyle || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="年龄感">
-              {data.ageStyle || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="脸型">
-              {data.faceDesc || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="发型">
-              {data.hairDesc || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="肤色">
-              {data.skinDesc || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="身材">
-              {data.bodyDesc || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="气质">
-              {data.vibeDesc || "-"}
-            </Descriptions.Item>
-            <Descriptions.Item label="默认镜头">
-              <Tag>{data.defaultCamera || "未设置"}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="默认动作">
-              <Tag>{data.defaultMotion || "未设置"}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="默认场景">
-              <Tag>{data.defaultScene || "未设置"}</Tag>
-            </Descriptions.Item>
-          </Descriptions>
+          <Descriptions
+            column={1}
+            bordered
+            size="small"
+            items={[
+              { label: "名称", children: data.name },
+              { label: "描述", children: data.description || "-" },
+              { label: "性别风格", children: data.genderStyle || "-" },
+              { label: "年龄感", children: data.ageStyle || "-" },
+              { label: "脸型", children: data.faceDesc || "-" },
+              { label: "发型", children: data.hairDesc || "-" },
+              { label: "肤色", children: data.skinDesc || "-" },
+              { label: "身材", children: data.bodyDesc || "-" },
+              { label: "气质", children: data.vibeDesc || "-" },
+              { label: "默认镜头", children: <Tag>{data.defaultCamera || "未设置"}</Tag> },
+              { label: "默认动作", children: <Tag>{data.defaultMotion || "未设置"}</Tag> },
+              { label: "默认场景", children: <Tag>{data.defaultScene || "未设置"}</Tag> },
+            ]}
+          />
 
           {data.outfits?.length > 0 && (
             <div className="mt-4">

@@ -4,6 +4,8 @@ import { Card, Form, Input, Button, Typography, App } from "antd";
 import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/store/use-auth-store";
 
 const { Title, Text } = Typography;
 
@@ -15,19 +17,11 @@ export default function LoginPage() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const data = await res.json();
-      if (data.success) {
-        router.push("/app/dashboard");
-      } else {
-        message.error(data.error?.message || "登录失败");
-      }
-    } catch {
-      message.error("网络错误，请重试");
+      await api.post("/api/auth/login", values);
+      await useAuthStore.getState().fetchUser();
+      router.push("/app/dashboard");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "网络错误，请重试");
     } finally {
       setLoading(false);
     }
