@@ -115,9 +115,11 @@ model Outfit {
   materialDesc        String?
   colorDesc           String?
   backgroundDesc      String?
-  sceneDesc           String?
+  sceneTemplateId     String?
   cameraTemplate      String?
   motionTemplate      String?
+  scenarioPresetId    String?
+  promptSnapshotJson  Json?
   aspectRatio         String?
   durationSec         Int?
   resolution          String?

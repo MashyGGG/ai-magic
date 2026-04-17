@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { use } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { use, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Typography,
   Card,
@@ -14,8 +14,10 @@ import {
   Row,
   Col,
   Button,
+  Tabs,
+  Collapse,
   App,
-} from "antd";
+} from 'antd';
 import {
   ClockCircleOutlined,
   PictureOutlined,
@@ -24,27 +26,37 @@ import {
   ReloadOutlined,
   StarFilled,
   StarOutlined,
-} from "@ant-design/icons";
-import api from "@/lib/axios";
+} from '@ant-design/icons';
+import {
+  resolveImagePromptFromOutfitRow,
+  resolveVideoPromptFromOutfitRow,
+  type OutfitScenarioPreset,
+} from '@ai-magic/prompts';
+import api from '@/lib/axios';
+import { PromptSegmentsView } from '@/components/prompt-segments-view';
 
 const { Title, Text } = Typography;
 
+interface PresetsResp {
+  data: { items: OutfitScenarioPreset[] };
+}
+
 const statusColors: Record<string, string> = {
-  DRAFT: "default",
-  GENERATED: "processing",
-  REVIEWING: "warning",
-  APPROVED: "success",
-  REJECTED: "error",
-  ARCHIVED: "default",
-  PENDING: "default",
-  QUEUED: "processing",
-  RUNNING: "processing",
-  SUCCEEDED: "success",
-  FAILED: "error",
-  CANCELED: "default",
-  DOWNLOAD_FAILED: "error",
-  BUDGET_EXCEEDED: "warning",
-  RETRYING: "processing",
+  DRAFT: 'default',
+  GENERATED: 'processing',
+  REVIEWING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'error',
+  ARCHIVED: 'default',
+  PENDING: 'default',
+  QUEUED: 'processing',
+  RUNNING: 'processing',
+  SUCCEEDED: 'success',
+  FAILED: 'error',
+  CANCELED: 'default',
+  DOWNLOAD_FAILED: 'error',
+  BUDGET_EXCEEDED: 'warning',
+  RETRYING: 'processing',
 };
 
 interface JobItem {
@@ -57,6 +69,8 @@ interface JobItem {
   createdAt: string;
   finishedAt?: string;
   errorMessage?: string;
+  promptText?: string | null;
+  promptJson?: unknown;
   outputAsset?: {
     id: string;
     storageKey: string;
@@ -67,93 +81,135 @@ interface JobItem {
   costs: { amount: string }[];
 }
 
-export default function OutfitDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function OutfitDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { message } = App.useApp();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["outfit", id],
+    queryKey: ['outfit', id],
     queryFn: () => api.get(`/api/outfits/${id}`).then((r) => r.data),
     refetchInterval: 5000,
+  });
+
+  const { data: presetsData } = useQuery<PresetsResp>({
+    queryKey: ['scenario-presets'],
+    queryFn: () => api.get('/api/scenario-presets').then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
   });
 
   const genImagesMut = useMutation({
     mutationFn: () => {
       const outfit = data?.data;
       return api
-        .post("/api/generations/image", {
+        .post('/api/generations/image', {
           outfitId: id,
-          provider: outfit?.providerPreference || "MINIMAX",
-          model: outfit?.imageModel || "image-01",
+          provider: outfit?.providerPreference || 'MINIMAX',
+          model: outfit?.imageModel || 'image-01',
           count: outfit?.imageCount || 4,
         })
         .then((r) => r.data);
     },
     onSuccess: (r) => {
       message.success(`已提交 ${r.data.jobIds.length} 个首帧生成任务`);
-      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
+      queryClient.invalidateQueries({ queryKey: ['outfit', id] });
     },
-    onError: (err) => message.error(err instanceof Error ? err.message : "提交失败"),
+    onError: (err) => message.error(err instanceof Error ? err.message : '提交失败'),
   });
 
   const genVideoMut = useMutation({
     mutationFn: (inputAssetId: string) => {
       const outfit = data?.data;
       return api
-        .post("/api/generations/video", {
+        .post('/api/generations/video', {
           outfitId: id,
           inputAssetId,
-          provider: outfit?.providerPreference || "MINIMAX",
-          model: outfit?.videoModel || "Hailuo-2.3-Fast",
+          provider: outfit?.providerPreference || 'MINIMAX',
+          model: outfit?.videoModel || 'Hailuo-2.3-Fast',
           count: outfit?.videoCount || 2,
           durationSec: outfit?.durationSec || 6,
-          resolution: outfit?.resolution || "768p",
+          resolution: outfit?.resolution || '768p',
         })
         .then((r) => r.data);
     },
     onSuccess: (r) => {
       message.success(`已提交 ${r.data.jobIds.length} 个视频生成任务`);
-      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
+      queryClient.invalidateQueries({ queryKey: ['outfit', id] });
     },
-    onError: (err) => message.error(err instanceof Error ? err.message : "提交失败"),
+    onError: (err) => message.error(err instanceof Error ? err.message : '提交失败'),
   });
 
   const selectFrameMut = useMutation({
     mutationFn: ({ assetId, selected }: { assetId: string; selected: boolean }) =>
-      api.post(`/api/assets/${assetId}/select-frame`, { outfitId: id, selected }).then((r) => r.data),
+      api
+        .post(`/api/assets/${assetId}/select-frame`, { outfitId: id, selected })
+        .then((r) => r.data),
     onSuccess: () => {
-      message.success("已更新选帧");
-      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
+      message.success('已更新选帧');
+      queryClient.invalidateQueries({ queryKey: ['outfit', id] });
     },
-    onError: (err) => message.error(err instanceof Error ? err.message : "操作失败"),
+    onError: (err) => message.error(err instanceof Error ? err.message : '操作失败'),
   });
 
   const retryMut = useMutation({
-    mutationFn: (jobId: string) =>
-      api.post(`/api/jobs/${jobId}/retry`, {}).then((r) => r.data),
+    mutationFn: (jobId: string) => api.post(`/api/jobs/${jobId}/retry`, {}).then((r) => r.data),
     onSuccess: () => {
-      message.success("已重新排队");
-      queryClient.invalidateQueries({ queryKey: ["outfit", id] });
+      message.success('已重新排队');
+      queryClient.invalidateQueries({ queryKey: ['outfit', id] });
     },
-    onError: (err) => message.error(err instanceof Error ? err.message : "重试失败"),
+    onError: (err) => message.error(err instanceof Error ? err.message : '重试失败'),
   });
 
-  if (isLoading) return <Skeleton active />;
-  if (!data?.data) return <Empty description="任务不存在" />;
+  const outfit = data?.data;
+  const presets = presetsData?.data?.items || [];
 
-  const outfit = data.data;
+  const currentPreset = useMemo(() => {
+    if (!outfit?.scenarioPresetId) return null;
+    return presets.find((p) => p.id === outfit.scenarioPresetId) ?? null;
+  }, [outfit?.scenarioPresetId, presets]);
+
+  const livePreview = useMemo(() => {
+    if (!outfit) return null;
+    const row = {
+      topDesc: outfit.topDesc,
+      bottomDesc: outfit.bottomDesc,
+      shoesDesc: outfit.shoesDesc,
+      bagDesc: outfit.bagDesc,
+      accessoriesDesc: outfit.accessoriesDesc,
+      materialDesc: outfit.materialDesc,
+      colorDesc: outfit.colorDesc,
+      backgroundDesc: outfit.backgroundDesc,
+      sceneTemplateId: outfit.sceneTemplateId,
+      cameraTemplate: outfit.cameraTemplate,
+      motionTemplate: outfit.motionTemplate,
+      aspectRatio: outfit.aspectRatio,
+      characterTemplate: outfit.characterTemplate
+        ? {
+            genderStyle: outfit.characterTemplate.genderStyle,
+            ageStyle: outfit.characterTemplate.ageStyle,
+            faceDesc: outfit.characterTemplate.faceDesc,
+            hairDesc: outfit.characterTemplate.hairDesc,
+            skinDesc: outfit.characterTemplate.skinDesc,
+            bodyDesc: outfit.characterTemplate.bodyDesc,
+            vibeDesc: outfit.characterTemplate.vibeDesc,
+            referenceAssetId: outfit.characterTemplate.referenceAssetId,
+          }
+        : null,
+    };
+    return {
+      image: resolveImagePromptFromOutfitRow(row, { preset: currentPreset }),
+      video: resolveVideoPromptFromOutfitRow(row, { preset: currentPreset }),
+    };
+  }, [outfit, currentPreset]);
+
+  if (isLoading) return <Skeleton active />;
+  if (!outfit) return <Empty description="任务不存在" />;
+
   const imageJobs: JobItem[] =
-    outfit.generationJobs?.filter((j: JobItem) => j.stage === "IMAGE") || [];
+    outfit.generationJobs?.filter((j: JobItem) => j.stage === 'IMAGE') || [];
   const videoJobs: JobItem[] =
-    outfit.generationJobs?.filter((j: JobItem) => j.stage === "VIDEO") || [];
-  const selectedFrame = imageJobs.find(
-    (j: JobItem) => j.outputAsset?.isSelectedFrame,
-  );
+    outfit.generationJobs?.filter((j: JobItem) => j.stage === 'VIDEO') || [];
+  const selectedFrame = imageJobs.find((j: JobItem) => j.outputAsset?.isSelectedFrame);
 
   return (
     <div className="space-y-6">
@@ -191,7 +247,7 @@ export default function OutfitDetailPage({
               value={outfit.totalCost}
               precision={2}
               prefix="¥"
-              styles={{ content: { color: "#c9a96e" } }}
+              styles={{ content: { color: '#c9a96e' } }}
             />
           </Card>
         </Col>
@@ -217,7 +273,7 @@ export default function OutfitDetailPage({
           <Card>
             <Statistic
               title="模板"
-              value={outfit.characterTemplate?.name || "-"}
+              value={outfit.characterTemplate?.name || '-'}
               styles={{ content: { fontSize: 14 } }}
             />
           </Card>
@@ -229,22 +285,110 @@ export default function OutfitDetailPage({
           column={2}
           size="small"
           items={[
-            { label: "Provider", children: <Tag>{outfit.providerPreference}</Tag> },
-            { label: "图片模型", children: outfit.imageModel },
-            { label: "视频模型", children: outfit.videoModel },
-            { label: "分辨率", children: outfit.resolution },
-            { label: "时长", children: `${outfit.durationSec}s` },
-            { label: "比例", children: outfit.aspectRatio },
+            { label: 'Provider', children: <Tag>{outfit.providerPreference}</Tag> },
+            { label: '图片模型', children: outfit.imageModel },
+            { label: '视频模型', children: outfit.videoModel },
+            { label: '分辨率', children: outfit.resolution },
+            { label: '时长', children: `${outfit.durationSec}s` },
+            { label: '比例', children: outfit.aspectRatio },
+            {
+              label: '场景预设',
+              children: outfit.scenarioPresetId ? (
+                <span>
+                  <Tag color="purple">{currentPreset?.label || outfit.scenarioPresetId}</Tag>
+                  {currentPreset && (
+                    <Text type="secondary" className="text-xs">
+                      v{currentPreset.version}
+                    </Text>
+                  )}
+                </span>
+              ) : (
+                <Text type="secondary">未选</Text>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <Card title="Prompt 详情" size="small">
+        <Tabs
+          defaultActiveKey="live"
+          items={[
+            {
+              key: 'live',
+              label: '本次将使用',
+              children: (
+                <Tabs
+                  defaultActiveKey="image"
+                  size="small"
+                  items={[
+                    {
+                      key: 'image',
+                      label: '图片',
+                      children: <PromptSegmentsView resolved={livePreview?.image ?? null} />,
+                    },
+                    {
+                      key: 'video',
+                      label: '视频',
+                      children: <PromptSegmentsView resolved={livePreview?.video ?? null} />,
+                    },
+                  ]}
+                />
+              ),
+            },
+            {
+              key: 'history',
+              label: `历史实际使用 (${outfit.generationJobs?.length || 0})`,
+              children:
+                outfit.generationJobs?.length > 0 ? (
+                  <Collapse
+                    accordion
+                    items={outfit.generationJobs.map((job: JobItem) => ({
+                      key: job.id,
+                      label: (
+                        <span className="flex items-center gap-2 text-xs">
+                          <Tag>{job.stage}</Tag>
+                          <Tag color={statusColors[job.status]}>{job.status}</Tag>
+                          <Text type="secondary">
+                            {new Date(job.createdAt).toLocaleString('zh-CN')}
+                          </Text>
+                          <Text type="secondary">{job.model}</Text>
+                        </span>
+                      ),
+                      children: job.promptText ? (
+                        <div className="space-y-3">
+                          {job.promptJson ? (
+                            <PromptSegmentsView
+                              resolved={{
+                                promptText: job.promptText,
+                                promptJson: job.promptJson as never,
+                              }}
+                            />
+                          ) : (
+                            <div className="rounded bg-gray-50 p-2 font-mono text-xs leading-relaxed">
+                              {job.promptText}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <Empty
+                          description="此任务未保存 promptText（旧数据）"
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      ),
+                    }))}
+                  />
+                ) : (
+                  <Empty description="暂无生成任务" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                ),
+            },
           ]}
         />
       </Card>
 
       <Card title="首帧候选" size="small">
         {imageJobs.length === 0 ? (
-          <Empty
-            description="点击「生成首帧」开始"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
+          <Empty description="点击「生成首帧」开始" image={Empty.PRESENTED_IMAGE_SIMPLE}>
             <Button
               type="primary"
               onClick={() => genImagesMut.mutate()}
@@ -259,12 +403,12 @@ export default function OutfitDetailPage({
               <Card
                 key={job.id}
                 size="small"
-                className={`transition-all ${job.outputAsset?.isSelectedFrame ? "ring-2" : ""}`}
+                className={`transition-all ${job.outputAsset?.isSelectedFrame ? 'ring-2' : ''}`}
                 style={
                   job.outputAsset?.isSelectedFrame
                     ? {
-                        borderColor: "#c9a96e",
-                        boxShadow: "0 0 0 2px rgba(201,169,110,0.3)",
+                        borderColor: '#c9a96e',
+                        boxShadow: '0 0 0 2px rgba(201,169,110,0.3)',
                       }
                     : {}
                 }
@@ -276,7 +420,7 @@ export default function OutfitDetailPage({
                       size="small"
                       icon={
                         job.outputAsset.isSelectedFrame ? (
-                          <StarFilled style={{ color: "#c9a96e" }} />
+                          <StarFilled style={{ color: '#c9a96e' }} />
                         ) : (
                           <StarOutlined />
                         )
@@ -289,7 +433,7 @@ export default function OutfitDetailPage({
                       }
                     />
                   ) : null,
-                  ["FAILED", "DOWNLOAD_FAILED"].includes(job.status) ? (
+                  ['FAILED', 'DOWNLOAD_FAILED'].includes(job.status) ? (
                     <Button
                       key="retry"
                       type="text"
@@ -309,7 +453,7 @@ export default function OutfitDetailPage({
                     />
                   ) : (
                     <Text type="secondary">
-                      {job.status === "RUNNING" ? "生成中..." : job.status}
+                      {job.status === 'RUNNING' ? '生成中...' : job.status}
                     </Text>
                   )}
                 </div>
@@ -330,9 +474,7 @@ export default function OutfitDetailPage({
       <Card title="视频任务" size="small">
         {videoJobs.length === 0 ? (
           <Empty
-            description={
-              selectedFrame ? "点击「生成视频」开始" : "请先选定一张首帧图"
-            }
+            description={selectedFrame ? '点击「生成视频」开始' : '请先选定一张首帧图'}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         ) : (
@@ -348,8 +490,8 @@ export default function OutfitDetailPage({
                       preload="none"
                     />
                   ) : (
-                    <Text style={{ color: "#999" }}>
-                      {job.status === "RUNNING" ? "生成中..." : job.status}
+                    <Text style={{ color: '#999' }}>
+                      {job.status === 'RUNNING' ? '生成中...' : job.status}
                     </Text>
                   )}
                 </div>
@@ -360,7 +502,7 @@ export default function OutfitDetailPage({
                       {job.model}
                     </Text>
                   </div>
-                  {["FAILED", "DOWNLOAD_FAILED"].includes(job.status) && (
+                  {['FAILED', 'DOWNLOAD_FAILED'].includes(job.status) && (
                     <Button
                       size="small"
                       icon={<ReloadOutlined />}
@@ -383,41 +525,28 @@ export default function OutfitDetailPage({
 
       <Card title="Job 时间线" size="small">
         {outfit.generationJobs?.length === 0 ? (
-          <Empty
-            description="暂无任务记录"
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          <Empty description="暂无任务记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Timeline
             items={outfit.generationJobs?.map((job: JobItem) => ({
               color:
-                job.status === "SUCCEEDED"
-                  ? "green"
-                  : job.status === "FAILED"
-                    ? "red"
-                    : "blue",
-              dot:
-                job.status === "RUNNING" ? (
-                  <ClockCircleOutlined spin />
-                ) : undefined,
+                job.status === 'SUCCEEDED' ? 'green' : job.status === 'FAILED' ? 'red' : 'blue',
+              dot: job.status === 'RUNNING' ? <ClockCircleOutlined spin /> : undefined,
               children: (
                 <div>
-                  <Text strong>{job.stage}</Text>{" "}
+                  <Text strong>{job.stage}</Text>{' '}
                   <Tag color={statusColors[job.status]}>{job.status}</Tag>
                   <Text type="secondary" className="ml-2 text-xs">
                     {job.model}
                   </Text>
                   {job.costs.length > 0 && (
-                    <Text className="ml-2 text-xs" style={{ color: "#c9a96e" }}>
-                      ¥
-                      {job.costs
-                        .reduce((s, c) => s + Number(c.amount), 0)
-                        .toFixed(4)}
+                    <Text className="ml-2 text-xs" style={{ color: '#c9a96e' }}>
+                      ¥{job.costs.reduce((s, c) => s + Number(c.amount), 0).toFixed(4)}
                     </Text>
                   )}
                   <br />
                   <Text type="secondary" className="text-xs">
-                    {new Date(job.createdAt).toLocaleString("zh-CN")}
+                    {new Date(job.createdAt).toLocaleString('zh-CN')}
                   </Text>
                   {job.errorMessage && (
                     <>

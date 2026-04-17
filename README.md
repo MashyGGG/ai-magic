@@ -13,7 +13,8 @@ ai-magic/
 │   ├── db/           # Prisma ORM + PostgreSQL schema
 │   ├── shared/       # 共享类型、API 响应、错误码、Zod schema
 │   ├── providers/    # AI 厂商抽象层 (MiniMax / Runway skeleton)
-│   └── prompts/      # Prompt 模板与构建器
+│   └── prompts/      # Prompt 模板 + 30 套场景预设 + 解析器
+│                     # （outfit-scenarios.generated.ts / resolve-outfit-prompts / from-outfit-row）
 ├── docker-compose.yml
 └── pnpm-workspace.yaml
 ```
@@ -157,8 +158,11 @@ Auth Store (`apps/web/src/store/use-auth-store.ts`) 管理用户认证状态：
 - `GET /PATCH /DELETE /api/character-templates/:id` - 详情/更新/删除
 
 ### 穿搭任务
-- `GET /POST /api/outfits` - 列表/创建
-- `GET /PATCH /api/outfits/:id` - 详情/更新
+- `GET /POST /api/outfits` - 列表/创建（含 `scenarioPresetId` + 自动写 `promptSnapshotJson`）
+- `GET /PATCH /api/outfits/:id` - 详情/更新（切换预设时刷新快照；置 null 时清空快照）
+
+### 场景预设
+- `GET /api/scenario-presets` - 30 套场景预设清单 + 标签聚合（支持 `?tags=通勤,极简` 多标签 AND 过滤）
 
 ### 生成任务
 - `POST /api/generations/image` - 发起图片生成
@@ -223,6 +227,63 @@ interface AiProvider {
 | 17 | Zustand Auth Store (登录态管理) | done |
 | 18 | ESLint + Prettier 代码质量工具链 | done |
 | 19 | Ant Design v5 -> v6 兼容升级 | done |
+| 20 | 场景预设 Prompt 接入：30 套结构化预设 + 解析层 + DB/API + 双 Prompt 高亮预览 | done |
+
+## 场景预设 Prompt 接入
+
+把 [docs/Template-Prompt.md](docs/Template-Prompt.md) 的 30 套「图 + 视频」中文成品提示词拆解为结构化段落，沉到 `packages/prompts`，与角色模板、用户字段、镜头/动作枚举做合成；通过同一纯函数同时供 Web 预览和 Worker 生成使用。详细方案见 [docs/plans/场景预设_prompt_接入_c92e8a52.plan.md](docs/plans/场景预设_prompt_接入_c92e8a52.plan.md)。
+
+### 数据流
+
+```
+docs/Template-Prompt.md
+  └─[scripts/extract-template-prompt.mjs]→ packages/prompts/src/data/outfit-scenarios.generated.ts
+                                                    ↓
+                          loadOutfitScenarioPresets() / findOutfitScenario()
+                                                    ↓
+                          resolveImage/VideoPromptForOutfit(...)        （核心解析）
+                          resolveImage/VideoPromptFromOutfitRow(...)    （Prisma 行适配）
+                                          ↙                ↘
+                                Web 预览 (新建/详情页)    API 创建 GenerationJob 时落 promptText/Json
+                                                                    ↓
+                                                  Worker 优先读 promptText（无则兜底 resolve）
+```
+
+### 段级覆盖优先级
+
+| 段 | 优先级（高→低） |
+|---|---|
+| `character` | 角色模板拼出来的描述 → `preset.image.character` |
+| `referenceConstraint` | 角色模板挂参考图时追加「保持人物一致」 |
+| `outfit` | 用户表单 `*Desc` 任一非空 → 否则 `preset.image.outfit` |
+| `style / composition / lighting` | `preset.image.*` 直出 |
+| `scene` | `sceneTemplateId` → `backgroundDesc` → `preset.image.scene` |
+| `motion`（视频） | `motionTemplate` → `preset.video.motion` |
+| `camera`（视频） | `cameraTemplate` → `preset.video.camera` |
+| `quality / stability / 节奏` | 永远追加（来源 = `fallback`） |
+
+无 `preset` 时退化为现网 `buildImagePrompt/buildVideoPrompt`（`mode: 'modular'`，防回归）。
+
+### 数据同步
+
+```bash
+pnpm sync:presets    # 从 docs/Template-Prompt.md 重新抽取 → outfit-scenarios.generated.ts
+pnpm check:presets   # CI 校验：md 与 generated.ts 是否同步（不一致 exit 1）
+pnpm --filter @ai-magic/prompts test   # 15 个 node:test，覆盖覆盖优先级与 30 套 smoke
+```
+
+### Outfit 模型新增字段
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `scenarioPresetId` | `String?` | 选中的场景预设 id（如 `urban_minimal_commute`） |
+| `promptSnapshotJson` | `Json?` | 创建/编辑时锁定的预设快照（含 `presetVersion`），保证后续预设升级不影响在跑任务 |
+| `sceneTemplateId` | `String?` | **重命名自 `sceneDesc`**，实际存的是 `SCENE_TEMPLATES.id`，避免名字误导 |
+
+### UI
+
+- **新建任务页** (`/app/outfits/new`)：场景预设区有 16 个 `CheckableTag` 多标签过滤 + 搜索 Select；选中时弹 `Modal.confirm` 反向回填 `aspectRatio / durationSec`（不动 `outfit.*Desc`）；右栏 Prompt 预览改为 Tabs（图片/视频/纯文本），分段高亮带「预设 / 角色模板 / 用户输入 / 场景模板 / 镜头模板 / 参考图 / 通用」7 类来源 Tag。
+- **任务详情页** (`/app/outfits/:id`)：新增「Prompt 详情」Card，Tab1「本次将使用」实时算图片/视频；Tab2「历史实际使用 (N)」`Collapse` 展示每个 GenerationJob 的 `promptText / promptJson`，方便对比不同次出图差异。
 
 ## 后续待办 (第二阶段)
 
@@ -236,3 +297,4 @@ interface AiProvider {
 - Sentry 错误监控
 - CI/CD 流水线
 - Vercel 部署
+- 场景预设 PR-4 可选增强：`CharacterTemplate.defaultScenarioPresetId` 联动、`SystemSetting` 接管 30 套数据、后台 CRUD UI

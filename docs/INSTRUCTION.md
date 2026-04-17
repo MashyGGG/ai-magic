@@ -59,7 +59,7 @@
 
 1. 登录
 2. 角色模板管理
-3. 穿搭任务创建
+3. 穿搭任务创建（含 30 套场景预设选择 + 段级 Prompt 高亮预览）
 4. 首帧生成
 5. 人工选首帧
 6. 图生视频
@@ -180,6 +180,7 @@
 
 * 任务标题
 * 角色模板
+* **场景预设 ID**（可选，30 套精修预设之一；选中即给 prompt 注入 `style/composition/lighting/scene/motion/camera` 等段）
 * 上装描述
 * 下装描述
 * 鞋子描述
@@ -188,7 +189,7 @@
 * 面料 / 材质描述
 * 配色描述
 * 背景描述
-* 场景描述
+* 场景模板 ID（指向 `SCENE_TEMPLATES` 之一；为空且预设也未提供时回退 `backgroundDesc`）
 * 镜头模板
 * 动作模板
 * 比例
@@ -205,6 +206,7 @@
 2. 默认图片生成 4 张，视频生成 2 条。
 3. 默认视频时长 4–6 秒。
 4. 默认动作只能选轻动作模板。
+5. **选中场景预设时**：自动反向回填 `aspectRatio / durationSec`；用户已填的 `*Desc` 字段优先级高于预设；预设快照写入 `Outfit.promptSnapshotJson`，预设升级不影响在跑任务。
 
 ---
 
@@ -508,9 +510,11 @@ model Outfit {
   materialDesc        String?
   colorDesc           String?
   backgroundDesc      String?
-  sceneDesc           String?
+  sceneTemplateId     String?  // 重命名自 sceneDesc，存 SCENE_TEMPLATES.id
   cameraTemplate      String?
   motionTemplate      String?
+  scenarioPresetId    String?  // 30 套场景预设之一的 id（如 urban_minimal_commute）
+  promptSnapshotJson  Json?    // 创建/编辑时的预设快照（含 presetVersion）
   aspectRatio         String?
   durationSec         Int?
   resolution          String?
@@ -775,7 +779,8 @@ model SystemSetting {
   "materialDesc": "西装面料有轻微纹理",
   "colorDesc": "浅灰 + 黑色点缀",
   "backgroundDesc": "干净高级的都市摄影棚",
-  "sceneDesc": "商业时尚广告风",
+  "sceneTemplateId": "minimal_studio",
+  "scenarioPresetId": "urban_minimal_commute",
   "cameraTemplate": "45度全身",
   "motionTemplate": "轻微转身",
   "aspectRatio": "9:16",
@@ -996,6 +1001,60 @@ model SystemSetting {
   "retryCount": 34
 }
 ```
+
+---
+
+## 5.10b 场景预设
+
+### GET `/api/scenario-presets`
+
+作用：返回 30 套精修场景预设的清单 + 标签聚合。
+
+查询参数：
+
+* `tags`（可选，逗号分隔）：多标签 AND 过滤，如 `?tags=通勤,极简`
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "urban_minimal_commute",
+        "label": "都市极简通勤",
+        "tags": ["通勤", "极简"],
+        "version": "v1",
+        "image": {
+          "character": "...",
+          "outfit": "...",
+          "style": "...",
+          "scene": "...",
+          "lighting": "...",
+          "composition": "..."
+        },
+        "video": {
+          "motion": "...",
+          "camera": "...",
+          "narrative": "..."
+        },
+        "defaults": { "aspectRatio": "9:16", "durationSec": 6 }
+      }
+    ],
+    "tags": [
+      { "value": "通勤", "count": 6 },
+      { "value": "极简", "count": 4 }
+    ]
+  }
+}
+```
+
+业务规则：
+
+* 数据来源 = `packages/prompts/src/data/outfit-scenarios.generated.ts`，由 `pnpm sync:presets` 从 [docs/Template-Prompt.md](Template-Prompt.md) 自动抽取
+* 选中后由前端反向回填 `aspectRatio / durationSec`，并将段化预设写入 `Outfit.promptSnapshotJson`
+* `GenerationJob` 创建时，由 API 调用 `resolveImage/VideoPromptFromOutfitRow(outfit, { preset })` 一次性把最终 `promptText / promptJson` 落库；Worker 直接读取，避免和 Web 预览出现"两次拼装结果不一致"
 
 ---
 
@@ -1237,14 +1296,15 @@ export interface AiProvider {
 
 1. 基础信息
 2. 角色模板选择
-3. 穿搭描述
-4. 场景与镜头
-5. 模型参数
-6. 提交按钮
+3. **场景预设**（16 个 `CheckableTag` 多标签过滤 + 搜索 Select；选中弹 Modal 反向回填 `aspectRatio / durationSec`，提示用户已填 `*Desc` 不会被覆盖）
+4. 穿搭描述（预设激活时顶部出 hint：留空段会用预设原文，填了就 override）
+5. 场景与镜头（同上）
+6. 模型参数
+7. 提交按钮
 
 ### 右侧：预览与说明区
 
-1. Prompt 预览
+1. **Prompt 预览（Tabs：图片 / 视频 / 纯文本）**：图片/视频 Tab 用 `PromptSegmentsView` 按段渲染，每段配「来源 Tag」标记 = 预设 / 角色模板 / 用户输入 / 场景模板 / 镜头模板 / 参考图 / 通用
 2. 默认成本预估
 3. 默认动作模板说明
 4. 生成策略提示
@@ -1265,13 +1325,16 @@ export interface AiProvider {
 
 ### 页面区块
 
-1. 任务基础信息
-2. 首帧候选图片区
-3. 首帧操作区
-4. 视频任务区
-5. 审核记录区
-6. 成本统计区
-7. Job 时间线区
+1. 任务基础信息（含「场景预设」标签 + 版本号）
+2. **Prompt 详情（Tabs：本次将使用 / 历史实际使用 N）**
+   - 「本次将使用」：实时 `resolveImage/VideoPromptFromOutfitRow` 算图片 + 视频，分段高亮
+   - 「历史实际使用」：`Collapse` 列出每个 `GenerationJob` 落库的 `promptText / promptJson`，方便对比
+3. 首帧候选图片区
+4. 首帧操作区
+5. 视频任务区
+6. 审核记录区
+7. 成本统计区
+8. Job 时间线区
 
 ### 首帧图片区
 

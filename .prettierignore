@@ -4,3 +4,4 @@ dist
 build
 pnpm-lock.yaml
 *.prisma
+packages/prompts/src/data/outfit-scenarios.generated.ts

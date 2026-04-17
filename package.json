@@ -12,7 +12,11 @@
     "db:studio": "pnpm --filter @ai-magic/db studio",
     "lint": "pnpm --filter @ai-magic/web lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "sync:presets": "node scripts/extract-template-prompt.mjs",
+    "check:presets": "node scripts/check-presets-sync.mjs",
+    "test": "pnpm -r --filter ./packages/prompts test",
+    "typecheck": "pnpm -r typecheck"
   },
   "engines": {
     "node": ">=18.17.0"

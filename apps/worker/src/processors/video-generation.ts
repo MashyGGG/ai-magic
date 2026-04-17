@@ -1,18 +1,15 @@
-import { Job, Queue } from "bullmq";
-import Redis from "ioredis";
-import { prisma } from "@ai-magic/db";
-import { getProvider } from "@ai-magic/providers";
-import { buildVideoPrompt } from "@ai-magic/prompts";
-import { storage } from "../lib/storage";
-import { publishJobStatus } from "../lib/publish";
+import { Job, Queue } from 'bullmq';
+import Redis from 'ioredis';
+import { prisma } from '@ai-magic/db';
+import { getProvider } from '@ai-magic/providers';
+import { findOutfitScenario, resolveVideoPromptFromOutfitRow } from '@ai-magic/prompts';
+import { storage } from '../lib/storage';
+import { publishJobStatus } from '../lib/publish';
 
-const connection = new Redis(
-  process.env.REDIS_URL || "redis://localhost:6379",
-  {
-    maxRetriesPerRequest: null,
-  },
-);
-const pollingQueue = new Queue("task-polling", { connection });
+const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+});
+const pollingQueue = new Queue('task-polling', { connection });
 
 interface VideoJobData {
   generationJobId: string;
@@ -30,44 +27,50 @@ export async function processVideoGeneration(job: Job<VideoJobData>) {
   });
 
   if (!genJob) throw new Error(`Job ${generationJobId} not found`);
-  if (!genJob.inputAsset?.storageKey) throw new Error("No input frame asset");
+  if (!genJob.inputAsset?.storageKey) throw new Error('No input frame asset');
 
   await prisma.generationJob.update({
     where: { id: generationJobId },
-    data: { status: "RUNNING", startedAt: new Date() },
+    data: { status: 'RUNNING', startedAt: new Date() },
   });
-  await publishJobStatus(generationJobId, "RUNNING");
+  await publishJobStatus(generationJobId, 'RUNNING');
 
   try {
     const provider = getProvider(genJob.provider);
     const imageUrl = await storage.getSignedUrl(genJob.inputAsset.storageKey);
 
-    const promptResult = genJob.promptText
-      ? { text: genJob.promptText, json: {} }
-      : buildVideoPrompt({
-          motionId: genJob.outfit.motionTemplate || undefined,
-          cameraId: genJob.outfit.cameraTemplate || undefined,
-          sceneDesc: genJob.outfit.backgroundDesc || undefined,
-        });
+    let promptText: string;
+    let promptJson: Record<string, unknown>;
+    if (genJob.promptText) {
+      promptText = genJob.promptText;
+      promptJson = (genJob.promptJson as Record<string, unknown>) || {};
+    } else {
+      const preset = genJob.outfit.scenarioPresetId
+        ? await findOutfitScenario(genJob.outfit.scenarioPresetId)
+        : null;
+      const resolved = resolveVideoPromptFromOutfitRow(genJob.outfit, { preset });
+      promptText = resolved.promptText;
+      promptJson = resolved.promptJson as unknown as Record<string, unknown>;
+    }
 
     const result = await provider.generateVideoFromImage({
-      prompt: promptResult.text,
+      prompt: promptText,
       inputImageUrl: imageUrl,
       durationSec: genJob.durationSec || genJob.outfit.durationSec || 6,
-      resolution: genJob.resolution || genJob.outfit.resolution || "768p",
+      resolution: genJob.resolution || genJob.outfit.resolution || '768p',
     });
 
     await prisma.generationJob.update({
       where: { id: generationJobId },
       data: {
         providerTaskId: result.taskId,
-        promptText: promptResult.text,
-        promptJson: promptResult.json,
+        promptText,
+        promptJson: promptJson as never,
       },
     });
 
     await pollingQueue.add(
-      "poll",
+      'poll',
       {
         generationJobId,
         providerTaskId: result.taskId,
@@ -79,16 +82,16 @@ export async function processVideoGeneration(job: Job<VideoJobData>) {
       },
     );
 
-    await publishJobStatus(generationJobId, "RUNNING", {
-      message: "Video task submitted, polling started",
+    await publishJobStatus(generationJobId, 'RUNNING', {
+      message: 'Video task submitted, polling started',
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
+    const msg = error instanceof Error ? error.message : 'Unknown error';
     await prisma.generationJob.update({
       where: { id: generationJobId },
-      data: { status: "FAILED", errorMessage: msg, finishedAt: new Date() },
+      data: { status: 'FAILED', errorMessage: msg, finishedAt: new Date() },
     });
-    await publishJobStatus(generationJobId, "FAILED", { error: msg });
+    await publishJobStatus(generationJobId, 'FAILED', { error: msg });
     throw error;
   }
 }

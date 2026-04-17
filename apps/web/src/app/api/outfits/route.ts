@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { prisma } from '@ai-magic/db';
 import { ok, paginated, fail } from '@ai-magic/shared';
 import { paginationSchema } from '@ai-magic/shared';
+import { findOutfitScenario } from '@ai-magic/prompts';
+import type { OutfitScenarioPromptSnapshot } from '@ai-magic/prompts';
+import type { Prisma } from '@ai-magic/db';
 import { requireUser, handleApiError } from '@/lib/api-utils';
 
 const createSchema = z.object({
@@ -16,9 +19,10 @@ const createSchema = z.object({
   materialDesc: z.string().optional(),
   colorDesc: z.string().optional(),
   backgroundDesc: z.string().optional(),
-  sceneDesc: z.string().optional(),
+  sceneTemplateId: z.string().optional(),
   cameraTemplate: z.string().optional(),
   motionTemplate: z.string().optional(),
+  scenarioPresetId: z.string().optional(),
   aspectRatio: z.string().default('9:16'),
   durationSec: z.number().int().min(2).max(10).default(6),
   resolution: z.string().default('768p'),
@@ -28,6 +32,21 @@ const createSchema = z.object({
   imageCount: z.number().int().min(1).max(8).default(4),
   videoCount: z.number().int().min(1).max(4).default(2),
 });
+
+async function buildPromptSnapshot(
+  scenarioPresetId: string | undefined,
+): Promise<OutfitScenarioPromptSnapshot | null> {
+  if (!scenarioPresetId) return null;
+  const preset = await findOutfitScenario(scenarioPresetId);
+  if (!preset) return null;
+  return {
+    presetId: preset.id,
+    presetVersion: preset.version,
+    aspectRatio: preset.aspectRatio,
+    image: preset.image,
+    video: preset.video,
+  };
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -70,12 +89,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const parsed = createSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(fail('INVALID_INPUT', parsed.error.issues[0].message), { status: 400 });
+      return NextResponse.json(fail('INVALID_INPUT', parsed.error.issues[0].message), {
+        status: 400,
+      });
     }
+
+    if (parsed.data.scenarioPresetId) {
+      const preset = await findOutfitScenario(parsed.data.scenarioPresetId);
+      if (!preset) {
+        return NextResponse.json(
+          fail('INVALID_INPUT', `场景预设不存在：${parsed.data.scenarioPresetId}`),
+          { status: 400 },
+        );
+      }
+    }
+
+    const promptSnapshotJson = await buildPromptSnapshot(parsed.data.scenarioPresetId);
 
     const outfit = await prisma.outfit.create({
       data: {
         ...parsed.data,
+        promptSnapshotJson: (promptSnapshotJson as unknown as Prisma.InputJsonValue) ?? undefined,
         createdById: user.userId,
       },
     });
